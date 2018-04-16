@@ -22,7 +22,7 @@ var (
 )
 
 func init() {
-	// Parse command line flags (-t DISCORD_BOT_TOKEN -sqs SQS_QUEUE_URL)
+	// Parse command line flags (-t DISCORD_BOT_TOKEN -stream KINESIS_STREAM_NAME)
 	flag.StringVar(&Token, "t", "", "Discord Bot Token")
 	flag.StringVar(&KinesisStreamName, "stream", "", "Amazon Kinesis Stream Name")
 	flag.Parse()
