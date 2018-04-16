@@ -30,11 +30,11 @@ func init() {
 func main() {
 	fmt.Println("setting up", Token, SqsQueueUrl)
 	// setup Amazon Session
-	sess := session.Must(session.NewSessionWithOptions(session.Options{
+	awsSession := session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	}))
 	// setup Amazon SQS queue
-	Svc = sqs.New(sess)
+	Svc = sqs.New(awsSession)
 
 	// create a new Discordgo Bot Client
 	dg, err := discordgo.New("Bot " + Token)
