@@ -22,14 +22,22 @@ var (
 )
 
 func init() {
+	// Parse command line flags (-t DISCORD_BOT_TOKEN -sqs SQS_QUEUE_URL)
 	flag.StringVar(&Token, "t", "", "Discord Bot Token")
 	flag.StringVar(&SqsQueueUrl, "sqs", "", "Amazon SQS Queue URL")
 	flag.Parse()
+	// overwrite with environment variables if set DISCORD_BOT_TOKEN=… SQS_QUEUE_URL=…
+	if os.Getenv("DISCORD_BOT_TOKEN") != "" {
+		Token = os.Getenv("DISCORD_BOT_TOKEN")
+	}
+	if os.Getenv("SQS_QUEUE_URL") != "" {
+		SqsQueueUrl = os.Getenv("SQS_QUEUE_URL")
+	}
 }
 
 func main() {
-	fmt.Println("setting up", Token, SqsQueueUrl)
 	// setup Amazon Session
+	fmt.Println("connecting to Amazon SQS, URL:", SqsQueueUrl)
 	awsSession := session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	}))
@@ -37,6 +45,7 @@ func main() {
 	Svc = sqs.New(awsSession)
 
 	// create a new Discordgo Bot Client
+	fmt.Println("connecting to Discord, Token Length:", len(Token))
 	dg, err := discordgo.New("Bot " + Token)
 	if err != nil {
 		fmt.Println("error creating Discord session,", err)
