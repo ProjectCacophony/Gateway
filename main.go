@@ -8,6 +8,8 @@ import (
 
 	"flag"
 
+	"encoding/base64"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sqs"
@@ -98,8 +100,10 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 				StringValue: aws.String("discordgo.MessageCreate"),
 			},
 		},
-		MessageBody: aws.String(string(marshalled)),
-		QueueUrl:    &SqsQueueUrl,
+		QueueUrl:               &SqsQueueUrl,
+		MessageGroupId:         aws.String("discord-events"),
+		MessageDeduplicationId: aws.String(m.ID),
+		MessageBody:            aws.String(base64.StdEncoding.EncodeToString(marshalled)),
 	})
 	if err != nil {
 		fmt.Println("error sending event to SQS:", err.Error())
@@ -108,5 +112,5 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 	// log
 	fmt.Printf("successfully sent #%s by #%s (%s) to SNS Queue: #%s\n",
-		m.ID, m.Author.ID, m.Content, result.MessageId)
+		m.ID, m.Author.ID, m.Content, *result.MessageId)
 }
