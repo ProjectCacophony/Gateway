@@ -8,43 +8,41 @@ import (
 
 	"flag"
 
-	"encoding/base64"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/bwmarrin/discordgo"
-	"github.com/vmihailenco/msgpack"
+	"github.com/json-iterator/go"
 )
 
 var (
-	Token       string
-	SqsQueueUrl string
-	Svc         *sqs.SQS
+	Token             string
+	KinesisStreamName string
+	Kinesis           *kinesis.Kinesis
 )
 
 func init() {
 	// Parse command line flags (-t DISCORD_BOT_TOKEN -sqs SQS_QUEUE_URL)
 	flag.StringVar(&Token, "t", "", "Discord Bot Token")
-	flag.StringVar(&SqsQueueUrl, "sqs", "", "Amazon SQS Queue URL")
+	flag.StringVar(&KinesisStreamName, "stream", "", "Amazon Kinesis Stream Name")
 	flag.Parse()
-	// overwrite with environment variables if set DISCORD_BOT_TOKEN=… SQS_QUEUE_URL=…
+	// overwrite with environment variables if set DISCORD_BOT_TOKEN=… KINESIS_STREAM_NAME=…
 	if os.Getenv("DISCORD_BOT_TOKEN") != "" {
 		Token = os.Getenv("DISCORD_BOT_TOKEN")
 	}
-	if os.Getenv("SQS_QUEUE_URL") != "" {
-		SqsQueueUrl = os.Getenv("SQS_QUEUE_URL")
+	if os.Getenv("KINESIS_STREAM_NAME") != "" {
+		KinesisStreamName = os.Getenv("KINESIS_STREAM_NAME")
 	}
 }
 
 func main() {
 	// setup Amazon Session
-	fmt.Println("connecting to Amazon SQS, URL:", SqsQueueUrl)
+	fmt.Println("connecting to Amazon Kinesis, Stream:", KinesisStreamName)
 	awsSession := session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	}))
-	// setup Amazon SQS queue
-	Svc = sqs.New(awsSession)
+	// setup Amazon Kinesis
+	Kinesis = kinesis.New(awsSession)
 
 	// create a new Discordgo Bot Client
 	fmt.Println("connecting to Discord, Token Length:", len(Token))
@@ -86,31 +84,26 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 
 	// pack the event
-	marshalled, err := msgpack.Marshal(m)
+	marshalled, err := jsoniter.Marshal(m)
 	if err != nil {
 		fmt.Println("error packing event:", err.Error())
 		return
 	}
 
-	// send the message to SQS queue
-	result, err := Svc.SendMessage(&sqs.SendMessageInput{
-		MessageAttributes: map[string]*sqs.MessageAttributeValue{
-			"EventType": {
-				DataType:    aws.String("String"),
-				StringValue: aws.String("discordgo.MessageCreate"),
-			},
-		},
-		QueueUrl:               &SqsQueueUrl,
-		MessageGroupId:         aws.String("discord-events"),
-		MessageDeduplicationId: aws.String(m.ID),
-		MessageBody:            aws.String(base64.StdEncoding.EncodeToString(marshalled)),
-	})
+	event := &kinesis.PutRecordInput{
+		Data:         marshalled,
+		PartitionKey: aws.String("key1"),
+		StreamName:   aws.String(KinesisStreamName),
+	}
+
+	// put the record into the kinesis stream
+	result, err := Kinesis.PutRecord(event)
 	if err != nil {
-		fmt.Println("error sending event to SQS:", err.Error())
+		fmt.Println("error sending event to kinesis:", err.Error())
 		return
 	}
 
 	// log
-	fmt.Printf("successfully sent #%s by #%s (%s) to SNS Queue: #%s\n",
-		m.ID, m.Author.ID, m.Content, *result.MessageId)
+	fmt.Printf("successfully sent #%s by #%s (%s) to Kinesis Stream: #%s (length: %d)\n",
+		m.ID, m.Author.ID, m.Content, *result.SequenceNumber, len(marshalled))
 }
