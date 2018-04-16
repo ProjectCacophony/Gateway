@@ -83,8 +83,11 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 
-	// pack the event
-	marshalled, err := jsoniter.Marshal(m)
+	// pack the event with additional information
+	marshalled, err := jsoniter.Marshal(DMessageCreateEvent{
+		Event:   m,
+		BotUser: s.State.User,
+	})
 	if err != nil {
 		fmt.Println("error packing event:", err.Error())
 		return
