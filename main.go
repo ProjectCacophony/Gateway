@@ -48,7 +48,7 @@ func main() {
 	fmt.Println("connecting to Discord, Token Length:", len(Token))
 	dg, err := discordgo.New("Bot " + Token)
 	if err != nil {
-		fmt.Println("error creating Discord session,", err)
+		fmt.Println("error creating Discord session,", err.Error())
 		return
 	}
 
@@ -58,7 +58,7 @@ func main() {
 	// open Discord Websocket connection
 	err = dg.Open()
 	if err != nil {
-		fmt.Println("error opening connection,", err)
+		fmt.Println("error opening connection,", err.Error())
 		return
 	}
 
@@ -86,7 +86,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	// pack the event
 	marshalled, err := msgpack.Marshal(m)
 	if err != nil {
-		fmt.Println("Error packing event:", err)
+		fmt.Println("error packing event:", err.Error())
 		return
 	}
 
@@ -102,11 +102,11 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		QueueUrl:    &SqsQueueUrl,
 	})
 	if err != nil {
-		fmt.Println("Error sending event to SQS:", err)
+		fmt.Println("error sending event to SQS:", err.Error())
 		return
 	}
 
 	// log
-	fmt.Printf("Successfully sent #%s by #%s (%s) to SNS Queue: #%s\n",
+	fmt.Printf("successfully sent #%s by #%s (%s) to SNS Queue: #%s\n",
 		m.ID, m.Author.ID, m.Content, result.MessageId)
 }
