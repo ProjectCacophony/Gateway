@@ -8,6 +8,7 @@
     "Endpoint": "/greeter",
     "Requirements": [
       {
+        "Alias": "greeter",
         "Beginning": "greeter",
         "Regex": "",
         "DoNotPrependPrefix": false,
@@ -38,12 +39,14 @@
     "Endpoint": "/trigger-pong",
     "Requirements": [
       {
+        "Alias": "ping",
         "Beginning": "ping",
         "Regex": "",
         "DoNotPrependPrefix": false,
         "CaseSensitive": false
       },
       {
+        "Alias": "ping",
         "Beginning": "pong",
         "Regex": "",
         "DoNotPrependPrefix": false,
@@ -60,14 +63,7 @@
       "MESSAGE_CREATE"
     ],
     "Endpoint": "/customcommands",
-    "Requirements": [
-      {
-        "Beginning": "",
-        "Regex": "",
-        "DoNotPrependPrefix": false,
-        "CaseSensitive": false
-      }
-    ],
+    "Requirements": [],
     "Always": false,
     "Priority": -1
   },
@@ -80,14 +76,7 @@
       "MESSAGE_UPDATE"
     ],
     "Endpoint": "/store-chatlog",
-    "Requirements": [
-      {
-        "Beginning": "",
-        "Regex": "",
-        "DoNotPrependPrefix": true,
-        "CaseSensitive": false
-      }
-    ],
+    "Requirements": [],
     "Always": true,
     "Priority": -10
   }

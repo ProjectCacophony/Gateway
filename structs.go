@@ -7,6 +7,7 @@ import (
 )
 
 type DDiscordEvent struct {
+	Alias             string
 	Type              EventType
 	Prefix            string
 	Event             interface{}

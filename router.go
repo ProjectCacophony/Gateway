@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"regexp"
 	"sort"
+	"strings"
 )
 
 type EventType string
@@ -62,7 +63,8 @@ type RawRoutingRequirementEntry struct {
 	Beginning          string // can be empty, will match all
 	Regex              string // can be empty, will match all
 	DoNotPrependPrefix bool   // if false, prepends guild prefix to regex
-	CaseSensitive      bool   // prepends (?i) to regex on go, language dependent
+	CaseSensitive      bool   // prepends (?i) to regex on go, language dependent#
+	Alias              string
 }
 
 // Routing Compiled Config
@@ -74,6 +76,7 @@ type RoutingEntry struct {
 	DoNotPrependPrefix bool
 	CaseSensitive      bool
 	Always             bool
+	Alias              string
 }
 
 // returns a sorted slice (by priority) with all rules
@@ -95,9 +98,6 @@ func GetRoutings() (routing []RoutingEntry, err error) {
 	rawEntriesByPriority := make(map[int][]RawRoutingEntry, 0)
 
 	for _, rawRoutingEntry := range rawRouting {
-		if _, ok := rawEntriesByPriority[rawRoutingEntry.Priority]; !ok {
-			rawEntriesByPriority[rawRoutingEntry.Priority] = make([]RawRoutingEntry, 0)
-		}
 		rawEntriesByPriority[rawRoutingEntry.Priority] = append(
 			rawEntriesByPriority[rawRoutingEntry.Priority], rawRoutingEntry,
 		)
@@ -156,6 +156,7 @@ func GetRoutings() (routing []RoutingEntry, err error) {
 						}
 						newEntryCopy.DoNotPrependPrefix = requirement.DoNotPrependPrefix
 						newEntryCopy.CaseSensitive = requirement.CaseSensitive
+						newEntryCopy.Alias = requirement.Alias
 						routing = append(routing, newEntryCopy)
 					}
 				} else {
@@ -166,4 +167,50 @@ func GetRoutings() (routing []RoutingEntry, err error) {
 	}
 
 	return routing, nil
+}
+
+// checks if a message content matches the requirements of the routing rule
+func MatchMessageRequirements(routingEntry RoutingEntry, content string) (match bool) {
+	// match beginning if beginning is set
+	if routingEntry.Beginning != "" {
+		if routingEntry.CaseSensitive {
+			if routingEntry.DoNotPrependPrefix {
+				if !strings.HasPrefix(content, routingEntry.Beginning) {
+					return false
+				}
+			} else {
+				if !strings.HasPrefix(content, PREFIX+routingEntry.Beginning) {
+					return false
+				}
+			}
+		} else {
+			if routingEntry.DoNotPrependPrefix {
+				if !strings.HasPrefix(strings.ToLower(content), strings.ToLower(routingEntry.Beginning)) {
+					return false
+				}
+			} else {
+				if !strings.HasPrefix(strings.ToLower(content), PREFIX+strings.ToLower(routingEntry.Beginning)) {
+					return false
+				}
+			}
+		}
+	}
+	// match regex if regex is set
+	if routingEntry.Regex != nil {
+		if routingEntry.DoNotPrependPrefix {
+			if !routingEntry.Regex.MatchString(content) {
+				return false
+			}
+		} else {
+			if !strings.HasPrefix(content, PREFIX) {
+				return false
+			}
+			matchContent := strings.TrimLeft(content, PREFIX)
+			if !routingEntry.Regex.MatchString(matchContent) {
+				return false
+			}
+		}
+	}
+
+	return true
 }
