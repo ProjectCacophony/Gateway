@@ -1,0 +1,94 @@
+[
+  {
+    "_comment": "Greeter Commands",
+    "Active": false,
+    "Type": [
+      "MESSAGE_CREATE"
+    ],
+    "Endpoint": "/greeter",
+    "Requirements": [
+      {
+        "Beginning": "greeter",
+        "Regex": "",
+        "DoNotPrependPrefix": false,
+        "CaseSensitive": false
+      }
+    ],
+    "Always": false,
+    "Priority": 0
+  },
+  {
+    "_comment": "Greeter MemberAdd, Member Remove",
+    "Active": false,
+    "Type": [
+      "GUILD_MEMBER_ADD",
+      "GUILD_MEMBER_REMOVE"
+    ],
+    "Endpoint": "/greeter",
+    "Requirements": [],
+    "Always": true,
+    "Priority": 100
+  },
+  {
+    "_comment": "Ping Commands",
+    "Active": true,
+    "Type": [
+      "MESSAGE_CREATE"
+    ],
+    "Endpoint": "/trigger-pong",
+    "Requirements": [
+      {
+        "Beginning": "ping",
+        "Regex": "",
+        "DoNotPrependPrefix": false,
+        "CaseSensitive": false
+      },
+      {
+        "Beginning": "pong",
+        "Regex": "",
+        "DoNotPrependPrefix": false,
+        "CaseSensitive": false
+      }
+    ],
+    "Always": false,
+    "Priority": 0
+  },
+  {
+    "_comment": "",
+    "Active": false,
+    "Type": [
+      "MESSAGE_CREATE"
+    ],
+    "Endpoint": "/customcommands",
+    "Requirements": [
+      {
+        "Beginning": "",
+        "Regex": "",
+        "DoNotPrependPrefix": false,
+        "CaseSensitive": false
+      }
+    ],
+    "Always": false,
+    "Priority": -1
+  },
+  {
+    "_comment": "Chatlog (Message Create, Update, Delete)",
+    "Active": false,
+    "Type": [
+      "MESSAGE_CREATE",
+      "MESSAGE_DELETE",
+      "MESSAGE_UPDATE"
+    ],
+    "Endpoint": "/store-chatlog",
+    "Requirements": [
+      {
+        "Beginning": "",
+        "Regex": "",
+        "DoNotPrependPrefix": true,
+        "CaseSensitive": false
+      }
+    ],
+    "Always": true,
+    "Priority": -10
+  }
+]
