@@ -51,10 +51,10 @@ func main() {
 		fmt.Println("error getting routing config", err.Error())
 		return
 	}
-	fmt.Println("found", len(RoutingConfig), "rules")
+	fmt.Println("Found", len(RoutingConfig), "routing rules")
 
 	// create a new Discordgo Bot Client
-	fmt.Println("connecting to Discord, Token Length:", len(Token))
+	fmt.Println("Connecting to Discord, Token Length:", len(Token))
 	dg, err := discordgo.New("Bot " + Token)
 	if err != nil {
 		fmt.Println("error creating Discord session,", err.Error())
@@ -107,9 +107,9 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 	dDEvent := DDiscordEvent{
 		Type:              "",
 		Event:             i,
-		BotUser:           new(discordgo.User),
-		SourceChannel:     new(discordgo.Channel),
-		SourceGuild:       new(discordgo.Guild),
+		BotUser:           nil,
+		SourceChannel:     nil,
+		SourceGuild:       nil,
 		GatewayReceivedAt: time.Now(),
 		Prefix:            PREFIX,
 	}
