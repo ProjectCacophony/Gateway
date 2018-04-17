@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"gitlab.com/project-d-collab/dhelpers"
 )
 
 var (
@@ -22,7 +23,7 @@ var (
 	ApiKey          string
 	HttpClient      http.Client
 	ApiRequest      *http.Request
-	RoutingConfig   []RoutingEntry
+	RoutingConfig   []dhelpers.RoutingRule
 )
 
 func init() {
@@ -46,7 +47,7 @@ func init() {
 func main() {
 	var err error
 	// get config
-	RoutingConfig, err = GetRoutings()
+	RoutingConfig, err = dhelpers.GetRoutings()
 	if err != nil {
 		fmt.Println("error getting routing config", err.Error())
 		return
@@ -104,7 +105,7 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 	var err error
 
 	// create enhanced Event
-	dDEvent := DDiscordEvent{
+	dDEvent := dhelpers.Event{
 		Type:              "",
 		Event:             i,
 		BotUser:           nil,
@@ -129,7 +130,7 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 
 		switch t := i.(type) {
 		case *discordgo.GuildCreate:
-			if routingEntry.Type != GuildCreateEventType {
+			if routingEntry.Type != dhelpers.GuildCreateEventType {
 				continue
 			}
 			dDEvent.Type = routingEntry.Type
@@ -148,7 +149,7 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 			}
 			continue
 		case *discordgo.GuildUpdate:
-			if routingEntry.Type != GuildUpdateEventType {
+			if routingEntry.Type != dhelpers.GuildUpdateEventType {
 				continue
 			}
 			dDEvent.Type = routingEntry.Type
@@ -166,7 +167,7 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 				fmt.Println("sent event", routingEntry.Type, "#", t.ID, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
 			}
 		case *discordgo.GuildDelete:
-			if routingEntry.Type != GuildDeleteEventType {
+			if routingEntry.Type != dhelpers.GuildDeleteEventType {
 				continue
 			}
 			dDEvent.Type = routingEntry.Type
@@ -184,7 +185,7 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 				fmt.Println("sent event", routingEntry.Type, "#", t.ID, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
 			}
 		case *discordgo.GuildMemberAdd:
-			if routingEntry.Type != GuildMemberAddEventType {
+			if routingEntry.Type != dhelpers.GuildMemberAddEventType {
 				continue
 			}
 			dDEvent.Type = routingEntry.Type
@@ -205,7 +206,7 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
 			}
 		case *discordgo.GuildMemberUpdate:
-			if routingEntry.Type != GuildMemberUpdateEventType {
+			if routingEntry.Type != dhelpers.GuildMemberUpdateEventType {
 				continue
 			}
 			dDEvent.Type = routingEntry.Type
@@ -226,7 +227,7 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
 			}
 		case *discordgo.GuildMemberRemove:
-			if routingEntry.Type != GuildMemberRemoveEventType {
+			if routingEntry.Type != dhelpers.GuildMemberRemoveEventType {
 				continue
 			}
 			dDEvent.Type = routingEntry.Type
@@ -247,7 +248,7 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
 			}
 		case *discordgo.GuildMembersChunk:
-			if routingEntry.Type != GuildMembersChunkEventType {
+			if routingEntry.Type != dhelpers.GuildMembersChunkEventType {
 				continue
 			}
 			dDEvent.Type = routingEntry.Type
@@ -268,7 +269,7 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
 			}
 		case *discordgo.GuildRoleCreate:
-			if routingEntry.Type != GuildRoleCreateEventType {
+			if routingEntry.Type != dhelpers.GuildRoleCreateEventType {
 				continue
 			}
 			dDEvent.Type = routingEntry.Type
@@ -289,7 +290,7 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
 			}
 		case *discordgo.GuildRoleUpdate:
-			if routingEntry.Type != GuildRoleUpdateEventType {
+			if routingEntry.Type != dhelpers.GuildRoleUpdateEventType {
 				continue
 			}
 			dDEvent.Type = routingEntry.Type
@@ -310,7 +311,7 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
 			}
 		case *discordgo.GuildRoleDelete:
-			if routingEntry.Type != GuildRoleDeleteEventType {
+			if routingEntry.Type != dhelpers.GuildRoleDeleteEventType {
 				continue
 			}
 			dDEvent.Type = routingEntry.Type
@@ -331,7 +332,7 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
 			}
 		case *discordgo.GuildEmojisUpdate:
-			if routingEntry.Type != GuildEmojisUpdateEventType {
+			if routingEntry.Type != dhelpers.GuildEmojisUpdateEventType {
 				continue
 			}
 			dDEvent.Type = routingEntry.Type
@@ -352,7 +353,7 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
 			}
 		case *discordgo.ChannelCreate:
-			if routingEntry.Type != ChannelCreateEventType {
+			if routingEntry.Type != dhelpers.ChannelCreateEventType {
 				continue
 			}
 			dDEvent.Type = routingEntry.Type
@@ -376,7 +377,7 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 				fmt.Println("sent event", routingEntry.Type, "#", t.ID, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
 			}
 		case *discordgo.ChannelUpdate:
-			if routingEntry.Type != ChannelUpdateEventType {
+			if routingEntry.Type != dhelpers.ChannelUpdateEventType {
 				continue
 			}
 			dDEvent.Type = routingEntry.Type
@@ -400,7 +401,7 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 				fmt.Println("sent event", routingEntry.Type, "#", t.ID, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
 			}
 		case *discordgo.ChannelDelete:
-			if routingEntry.Type != ChannelDeleteEventType {
+			if routingEntry.Type != dhelpers.ChannelDeleteEventType {
 				continue
 			}
 			dDEvent.Type = routingEntry.Type
@@ -424,11 +425,11 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 				fmt.Println("sent event", routingEntry.Type, "#", t.ID, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
 			}
 		case *discordgo.MessageCreate:
-			if routingEntry.Type != MessageCreateEventType {
+			if routingEntry.Type != dhelpers.MessageCreateEventType {
 				continue
 			}
 			// check requirements
-			if !MatchMessageRequirements(routingEntry, t.Content) {
+			if !dhelpers.RoutingMatchMessage(routingEntry, t.Content, PREFIX) {
 				continue
 			}
 			dDEvent.Type = routingEntry.Type
@@ -453,11 +454,11 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 				fmt.Println("sent event", routingEntry.Type, "#", t.ID, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
 			}
 		case *discordgo.MessageUpdate:
-			if routingEntry.Type != MessageUpdateEventType {
+			if routingEntry.Type != dhelpers.MessageUpdateEventType {
 				continue
 			}
 			// check requirements
-			if !MatchMessageRequirements(routingEntry, t.Content) {
+			if !dhelpers.RoutingMatchMessage(routingEntry, t.Content, PREFIX) {
 				continue
 			}
 			dDEvent.Type = routingEntry.Type
@@ -482,11 +483,11 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 				fmt.Println("sent event", routingEntry.Type, "#", t.ID, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
 			}
 		case *discordgo.MessageDelete:
-			if routingEntry.Type != MessageDeleteEventType {
+			if routingEntry.Type != dhelpers.MessageDeleteEventType {
 				continue
 			}
 			// check requirements
-			if !MatchMessageRequirements(routingEntry, t.Content) {
+			if !dhelpers.RoutingMatchMessage(routingEntry, t.Content, PREFIX) {
 				continue
 			}
 			dDEvent.Type = routingEntry.Type
@@ -511,7 +512,7 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 				fmt.Println("sent event", routingEntry.Type, "#", t.ID, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
 			}
 		case *discordgo.PresenceUpdate:
-			if routingEntry.Type != PresenceUpdateEventType {
+			if routingEntry.Type != dhelpers.PresenceUpdateEventType {
 				continue
 			}
 			dDEvent.Type = routingEntry.Type
@@ -532,7 +533,7 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
 			}
 		case *discordgo.ChannelPinsUpdate:
-			if routingEntry.Type != ChannelPinsUpdateEventType {
+			if routingEntry.Type != dhelpers.ChannelPinsUpdateEventType {
 				continue
 			}
 			dDEvent.Type = routingEntry.Type
@@ -557,7 +558,7 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
 			}
 		case *discordgo.GuildBanAdd:
-			if routingEntry.Type != GuildBanAddEventType {
+			if routingEntry.Type != dhelpers.GuildBanAddEventType {
 				continue
 			}
 			dDEvent.Type = routingEntry.Type
@@ -578,7 +579,7 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
 			}
 		case *discordgo.GuildBanRemove:
-			if routingEntry.Type != GuildBanRemoveEventType {
+			if routingEntry.Type != dhelpers.GuildBanRemoveEventType {
 				continue
 			}
 			dDEvent.Type = routingEntry.Type
@@ -599,7 +600,7 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
 			}
 		case *discordgo.MessageReactionAdd:
-			if routingEntry.Type != MessageReactionAddEventType {
+			if routingEntry.Type != dhelpers.MessageReactionAddEventType {
 				continue
 			}
 			dDEvent.Type = routingEntry.Type
@@ -624,7 +625,7 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
 			}
 		case *discordgo.MessageReactionRemove:
-			if routingEntry.Type != MessageReactionRemoveEventType {
+			if routingEntry.Type != dhelpers.MessageReactionRemoveEventType {
 				continue
 			}
 			dDEvent.Type = routingEntry.Type
@@ -649,7 +650,7 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
 			}
 		case *discordgo.MessageReactionRemoveAll:
-			if routingEntry.Type != MessageReactionRemoveAllEventType {
+			if routingEntry.Type != dhelpers.MessageReactionRemoveAllEventType {
 				continue
 			}
 			dDEvent.Type = routingEntry.Type

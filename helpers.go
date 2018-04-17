@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"io/ioutil"
 
+	"gitlab.com/project-d-collab/dhelpers"
+
 	"net/url"
 
 	"github.com/json-iterator/go"
@@ -11,7 +13,7 @@ import (
 )
 
 // sends an event to the given AWS Endpoint
-func SendEvent(event DDiscordEvent, endpoint string) error {
+func SendEvent(event dhelpers.Event, endpoint string) error {
 	// pack the event
 	marshalled, err := jsoniter.Marshal(event)
 	if err != nil {
