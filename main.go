@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/go-redis/redis"
 	"gitlab.com/project-d-collab/dhelpers"
 )
 
@@ -21,18 +22,22 @@ var (
 	Token           string
 	EndpointBaseUrl string
 	ApiKey          string
+	RedisAddress    string
 	HttpClient      http.Client
 	ApiRequest      *http.Request
 	RoutingConfig   []dhelpers.RoutingRule
+	RedisClient     *redis.Client
+	Started         time.Time
 )
 
 func init() {
-	// Parse command line flags (-t DISCORD_BOT_TOKEN -endpoint AWS_ENDPOINT_BASE -apikey AWS_API_KEY)
+	// Parse command line flags (-t DISCORD_BOT_TOKEN -endpoint AWS_ENDPOINT_BASE -apikey AWS_API_KEY -redis REDIS_ADDRESS)
 	flag.StringVar(&Token, "t", "", "Discord Bot Token")
 	flag.StringVar(&EndpointBaseUrl, "endpoint", "", "AWS Endpoint Base URL")
 	flag.StringVar(&ApiKey, "apikey", "", "AWS API Key")
+	flag.StringVar(&RedisAddress, "redis", "127.0.0.1:6379", "Redis Address")
 	flag.Parse()
-	// overwrite with environment variables if set DISCORD_BOT_TOKEN=… AWS_ENDPOINT_BASE=… AWS_API_KEY=…
+	// overwrite with environment variables if set DISCORD_BOT_TOKEN=… AWS_ENDPOINT_BASE=… AWS_API_KEY=… REDIS_ADDRESS=…
 	if os.Getenv("DISCORD_BOT_TOKEN") != "" {
 		Token = os.Getenv("DISCORD_BOT_TOKEN")
 	}
@@ -42,9 +47,13 @@ func init() {
 	if os.Getenv("AWS_API_KEY") != "" {
 		ApiKey = os.Getenv("AWS_API_KEY")
 	}
+	if os.Getenv("REDIS_ADDRESS") != "" {
+		RedisAddress = os.Getenv("REDIS_ADDRESS")
+	}
 }
 
 func main() {
+	Started = time.Now()
 	var err error
 	// get config
 	RoutingConfig, err = dhelpers.GetRoutings()
@@ -54,6 +63,13 @@ func main() {
 	}
 	fmt.Println("Found", len(RoutingConfig), "routing rules")
 
+	// connect to redis
+	RedisClient = redis.NewClient(&redis.Options{
+		Addr:     RedisAddress,
+		Password: "",
+		DB:       0,
+	})
+
 	// create a new Discordgo Bot Client
 	fmt.Println("Connecting to Discord, Token Length:", len(Token))
 	dg, err := discordgo.New("Bot " + Token)
@@ -61,6 +77,7 @@ func main() {
 		fmt.Println("error creating Discord session,", err.Error())
 		return
 	}
+
 	// create a new HTTP Client and prepare API request
 	HttpClient = http.Client{
 		Transport:     nil,
@@ -89,6 +106,7 @@ func main() {
 	}
 
 	// TODO: request guild member chunks for large guilds, and for new guilds
+	// TODO: persist and restore state?
 
 	// wait for CTRL+C to stop the Bot
 	fmt.Println("Bot is now running. Press CTRL-C to exit.")
@@ -102,6 +120,18 @@ func main() {
 
 // discord event handler
 func eventHandler(session *discordgo.Session, i interface{}) {
+	processEvent(session, i)
+	/*
+		if IsNewEvent(i) {
+			processEvent(session, i)
+		} else {
+			fmt.Println(fmt.Sprintf("%v", i))
+		}
+	*/
+}
+
+// discord event handler
+func processEvent(session *discordgo.Session, i interface{}) {
 	var err error
 
 	// create enhanced Event
@@ -112,6 +142,7 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 		SourceChannel:     nil,
 		SourceGuild:       nil,
 		GatewayReceivedAt: time.Now(),
+		GatewayStarted:    Started,
 		Prefix:            PREFIX,
 	}
 	// add additional state payload
@@ -133,6 +164,10 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 			if routingEntry.Type != dhelpers.GuildCreateEventType {
 				continue
 			}
+			// deduplication
+			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Guild)) {
+				return
+			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
 			dDEvent.Event = t
@@ -152,6 +187,10 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 			if routingEntry.Type != dhelpers.GuildUpdateEventType {
 				continue
 			}
+			// deduplication
+			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Guild)) {
+				return
+			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
 			dDEvent.Event = t
@@ -170,6 +209,10 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 			if routingEntry.Type != dhelpers.GuildDeleteEventType {
 				continue
 			}
+			// deduplication
+			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Guild)) {
+				return
+			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
 			dDEvent.Event = t
@@ -187,6 +230,10 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 		case *discordgo.GuildMemberAdd:
 			if routingEntry.Type != dhelpers.GuildMemberAddEventType {
 				continue
+			}
+			// deduplication
+			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Member)) {
+				return
 			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
@@ -209,6 +256,10 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 			if routingEntry.Type != dhelpers.GuildMemberUpdateEventType {
 				continue
 			}
+			// deduplication
+			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Member)) {
+				return
+			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
 			dDEvent.Event = t
@@ -229,6 +280,10 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 		case *discordgo.GuildMemberRemove:
 			if routingEntry.Type != dhelpers.GuildMemberRemoveEventType {
 				continue
+			}
+			// deduplication
+			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Member)) {
+				return
 			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
@@ -251,6 +306,10 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 			if routingEntry.Type != dhelpers.GuildMembersChunkEventType {
 				continue
 			}
+			// deduplication
+			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%s %v", t.GuildID, t.Members)) {
+				return
+			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
 			dDEvent.Event = t
@@ -271,6 +330,10 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 		case *discordgo.GuildRoleCreate:
 			if routingEntry.Type != dhelpers.GuildRoleCreateEventType {
 				continue
+			}
+			// deduplication
+			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.GuildRole)) {
+				return
 			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
@@ -293,6 +356,10 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 			if routingEntry.Type != dhelpers.GuildRoleUpdateEventType {
 				continue
 			}
+			// deduplication
+			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.GuildRole)) {
+				return
+			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
 			dDEvent.Event = t
@@ -313,6 +380,10 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 		case *discordgo.GuildRoleDelete:
 			if routingEntry.Type != dhelpers.GuildRoleDeleteEventType {
 				continue
+			}
+			// deduplication
+			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%s %s", t.RoleID, t.GuildID)) {
+				return
 			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
@@ -335,6 +406,10 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 			if routingEntry.Type != dhelpers.GuildEmojisUpdateEventType {
 				continue
 			}
+			// deduplication
+			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%s %v", t.GuildID, t.Emojis)) {
+				return
+			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
 			dDEvent.Event = t
@@ -355,6 +430,10 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 		case *discordgo.ChannelCreate:
 			if routingEntry.Type != dhelpers.ChannelCreateEventType {
 				continue
+			}
+			// deduplication
+			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Channel)) {
+				return
 			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
@@ -380,6 +459,10 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 			if routingEntry.Type != dhelpers.ChannelUpdateEventType {
 				continue
 			}
+			// deduplication
+			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Channel)) {
+				return
+			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
 			dDEvent.Event = t
@@ -404,6 +487,10 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 			if routingEntry.Type != dhelpers.ChannelDeleteEventType {
 				continue
 			}
+			// deduplication
+			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Channel)) {
+				return
+			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
 			dDEvent.Event = t
@@ -427,6 +514,10 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 		case *discordgo.MessageCreate:
 			if routingEntry.Type != dhelpers.MessageCreateEventType {
 				continue
+			}
+			// deduplication
+			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Message)) {
+				return
 			}
 			// check requirements
 			if !dhelpers.RoutingMatchMessage(routingEntry, t.Content, PREFIX) {
@@ -457,6 +548,10 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 			if routingEntry.Type != dhelpers.MessageUpdateEventType {
 				continue
 			}
+			// deduplication
+			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Message)) {
+				return
+			}
 			// check requirements
 			if !dhelpers.RoutingMatchMessage(routingEntry, t.Content, PREFIX) {
 				continue
@@ -485,6 +580,10 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 		case *discordgo.MessageDelete:
 			if routingEntry.Type != dhelpers.MessageDeleteEventType {
 				continue
+			}
+			// deduplication
+			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Message)) {
+				return
 			}
 			// check requirements
 			if !dhelpers.RoutingMatchMessage(routingEntry, t.Content, PREFIX) {
@@ -515,6 +614,10 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 			if routingEntry.Type != dhelpers.PresenceUpdateEventType {
 				continue
 			}
+			// deduplication
+			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v %s %v", t.Presence, t.GuildID, t.Roles)) {
+				return
+			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
 			dDEvent.Event = t
@@ -535,6 +638,10 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 		case *discordgo.ChannelPinsUpdate:
 			if routingEntry.Type != dhelpers.ChannelPinsUpdateEventType {
 				continue
+			}
+			// deduplication
+			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%s %s", t.LastPinTimestamp, t.ChannelID)) {
+				return
 			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
@@ -561,6 +668,10 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 			if routingEntry.Type != dhelpers.GuildBanAddEventType {
 				continue
 			}
+			// deduplication
+			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v %s", t.User, t.GuildID)) {
+				return
+			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
 			dDEvent.Event = t
@@ -582,6 +693,10 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 			if routingEntry.Type != dhelpers.GuildBanRemoveEventType {
 				continue
 			}
+			// deduplication
+			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v %s", t.User, t.GuildID)) {
+				return
+			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
 			dDEvent.Event = t
@@ -602,6 +717,10 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 		case *discordgo.MessageReactionAdd:
 			if routingEntry.Type != dhelpers.MessageReactionAddEventType {
 				continue
+			}
+			// deduplication
+			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.MessageReaction)) {
+				return
 			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
@@ -628,6 +747,10 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 			if routingEntry.Type != dhelpers.MessageReactionRemoveEventType {
 				continue
 			}
+			// deduplication
+			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.MessageReaction)) {
+				return
+			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
 			dDEvent.Event = t
@@ -652,6 +775,10 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 		case *discordgo.MessageReactionRemoveAll:
 			if routingEntry.Type != dhelpers.MessageReactionRemoveAllEventType {
 				continue
+			}
+			// deduplication
+			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.MessageReaction)) {
+				return
 			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
