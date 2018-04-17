@@ -121,16 +121,9 @@ func main() {
 // discord event handler
 func eventHandler(session *discordgo.Session, i interface{}) {
 	processEvent(session, i)
-	/*
-		if IsNewEvent(i) {
-			processEvent(session, i)
-		} else {
-			fmt.Println(fmt.Sprintf("%v", i))
-		}
-	*/
 }
 
-// discord event handler
+// processes discord events
 func processEvent(session *discordgo.Session, i interface{}) {
 	var err error
 
