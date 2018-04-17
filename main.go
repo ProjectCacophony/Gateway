@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"os/signal"
@@ -8,48 +9,66 @@ import (
 
 	"flag"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/kinesis"
+	"net/http"
+
+	"io/ioutil"
+
+	"time"
+
 	"github.com/bwmarrin/discordgo"
 	"github.com/json-iterator/go"
 )
 
 var (
-	Token             string
-	KinesisStreamName string
-	Kinesis           *kinesis.Kinesis
+	Token       string
+	EndpointUrl string
+	ApiKey      string
+	HttpClient  http.Client
+	ApiRequest  *http.Request
 )
 
 func init() {
-	// Parse command line flags (-t DISCORD_BOT_TOKEN -stream KINESIS_STREAM_NAME)
+	// Parse command line flags (-t DISCORD_BOT_TOKEN -endpoint AWS_ENDPOINT_URL -apikey AWS_API_KEY)
 	flag.StringVar(&Token, "t", "", "Discord Bot Token")
-	flag.StringVar(&KinesisStreamName, "stream", "", "Amazon Kinesis Stream Name")
+	flag.StringVar(&EndpointUrl, "endpoint", "", "Complete AWS Endpoint URL")
+	flag.StringVar(&ApiKey, "apikey", "", "AWS API Key")
 	flag.Parse()
 	// overwrite with environment variables if set DISCORD_BOT_TOKEN=… KINESIS_STREAM_NAME=…
 	if os.Getenv("DISCORD_BOT_TOKEN") != "" {
 		Token = os.Getenv("DISCORD_BOT_TOKEN")
 	}
-	if os.Getenv("KINESIS_STREAM_NAME") != "" {
-		KinesisStreamName = os.Getenv("KINESIS_STREAM_NAME")
+	if os.Getenv("AWS_ENDPOINT_URL") != "" {
+		EndpointUrl = os.Getenv("AWS_ENDPOINT_URL")
+	}
+	if os.Getenv("AWS_API_KEY") != "" {
+		ApiKey = os.Getenv("AWS_API_KEY")
 	}
 }
 
 func main() {
-	// setup Amazon Session
-	fmt.Println("connecting to Amazon Kinesis, Stream:", KinesisStreamName)
-	awsSession := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	}))
-	// setup Amazon Kinesis
-	Kinesis = kinesis.New(awsSession)
-
+	var err error
 	// create a new Discordgo Bot Client
 	fmt.Println("connecting to Discord, Token Length:", len(Token))
 	dg, err := discordgo.New("Bot " + Token)
 	if err != nil {
 		fmt.Println("error creating Discord session,", err.Error())
 		return
+	}
+	// create a new HTTP Client and prepare API request
+	HttpClient = http.Client{
+		Transport:     nil,
+		CheckRedirect: nil,
+		Jar:           nil,
+		Timeout:       time.Second * 10,
+	}
+	ApiRequest, err = http.NewRequest("POST", EndpointUrl, nil)
+	if err != nil {
+		fmt.Println("error creating http api request,", err.Error())
+		return
+	}
+	ApiRequest.Header = http.Header{
+		"X-APi-Key":    []string{ApiKey},
+		"Content-Type": []string{"application/json"},
 	}
 
 	// add the MessageCreate handler
@@ -85,28 +104,32 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 	// pack the event with additional information
 	marshalled, err := jsoniter.Marshal(DMessageCreateEvent{
-		Event:   m,
-		BotUser: s.State.User,
+		Event:             m,
+		BotUser:           s.State.User,
+		GatewayReceivedAt: time.Now(),
 	})
 	if err != nil {
 		fmt.Println("error packing event:", err.Error())
 		return
 	}
 
-	event := &kinesis.PutRecordInput{
-		Data:         marshalled,
-		PartitionKey: aws.String("key1"),
-		StreamName:   aws.String(KinesisStreamName),
-	}
+	// send to API Gateway
+	req := ApiRequest
+	req.Body = ioutil.NopCloser(bytes.NewReader(marshalled))
 
-	// put the record into the kinesis stream
-	result, err := Kinesis.PutRecord(event)
+	resp, err := HttpClient.Do(req)
 	if err != nil {
-		fmt.Println("error sending event to kinesis:", err.Error())
+		panic(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode/100 != 2 {
+		body, _ := ioutil.ReadAll(resp.Body)
+		fmt.Println("error sending request:", string(body))
 		return
 	}
 
 	// log
-	fmt.Printf("successfully sent #%s by #%s (%s) to Kinesis Stream: #%s (length: %d)\n",
-		m.ID, m.Author.ID, m.Content, *result.SequenceNumber, len(marshalled))
+	fmt.Printf("successfully sent #%s by #%s (%s)\n",
+		m.ID, m.Author.ID, m.Content)
 }

@@ -1,8 +1,13 @@
 package main
 
-import "github.com/bwmarrin/discordgo"
+import (
+	"time"
+
+	"github.com/bwmarrin/discordgo"
+)
 
 type DMessageCreateEvent struct {
-	Event   *discordgo.MessageCreate
-	BotUser *discordgo.User
+	Event             *discordgo.MessageCreate
+	BotUser           *discordgo.User
+	GatewayReceivedAt time.Time
 }
