@@ -5,18 +5,20 @@ import (
 
 	"time"
 
+	"encoding/binary"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/json-iterator/go"
 	"github.com/pkg/errors"
 )
 
-// sends an event to the given AWS Endpoint
-func SendEvent(start, receive time.Time, theType dhelpers.EventType, event interface{}, function string) error {
+// sends an event to the given AWS Lambda Function
+func SendEvent(start, receive time.Time, theType dhelpers.EventType, eventData interface{}, function string) (bytesSent int, err error) {
 	// pack the event data
-	marshalled, err := jsoniter.Marshal(event)
+	marshalled, err := jsoniter.Marshal(eventData)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	// create event container
@@ -29,7 +31,7 @@ func SendEvent(start, receive time.Time, theType dhelpers.EventType, event inter
 	// pack the event container
 	marshalledContainer, err := jsoniter.Marshal(eventContainer)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	// invoke lambda
@@ -39,7 +41,7 @@ func SendEvent(start, receive time.Time, theType dhelpers.EventType, event inter
 		Payload:        marshalledContainer,
 	})
 	if err != nil {
-		return errors.New("error invoking lambda: " + err.Error())
+		return 0, errors.New("error invoking lambda: " + err.Error())
 	}
-	return nil
+	return binary.Size(marshalledContainer), nil
 }
