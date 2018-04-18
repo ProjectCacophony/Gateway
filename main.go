@@ -8,8 +8,6 @@ import (
 
 	"flag"
 
-	"net/http"
-
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -21,89 +19,65 @@ import (
 )
 
 var (
-	PREFIXES        = []string{"/"} // TODO
-	Token           string
-	EndpointBaseUrl string
-	ApiKey          string
-	RedisAddress    string
-	HttpClient      http.Client
-	ApiRequest      *http.Request
-	RoutingConfig   []dhelpers.RoutingRule
-	RedisClient     *redis.Client
-	Started         time.Time
-	didLaunch       bool
-	lambdaClient    *lambda.Lambda
+	PREFIXES      = []string{"/"} // TODO
+	token         string
+	awsRegion     string
+	redisAddress  string
+	routingConfig []dhelpers.RoutingRule
+	redisClient   *redis.Client
+	started       time.Time
+	didLaunch     bool
+	lambdaClient  *lambda.Lambda
 )
 
 func init() {
-	// Parse command line flags (-t DISCORD_BOT_TOKEN -endpoint AWS_ENDPOINT_BASE -apikey AWS_API_KEY -redis REDIS_ADDRESS)
-	flag.StringVar(&Token, "t", "", "Discord Bot Token")
-	flag.StringVar(&EndpointBaseUrl, "endpoint", "", "AWS Endpoint Base URL")
-	flag.StringVar(&ApiKey, "apikey", "", "AWS API Key")
-	flag.StringVar(&RedisAddress, "redis", "127.0.0.1:6379", "Redis Address")
+	// Parse command line flags (-t DISCORD_BOT_TOKEN -aws-region AWS_REGION -redis REDIS_ADDRESS)
+	flag.StringVar(&token, "t", "", "Discord Bot token")
+	flag.StringVar(&awsRegion, "aws-region", "", "AWS Region")
+	flag.StringVar(&redisAddress, "redis", "127.0.0.1:6379", "Redis Address")
 	flag.Parse()
-	// overwrite with environment variables if set DISCORD_BOT_TOKEN=… AWS_ENDPOINT_BASE=… AWS_API_KEY=… REDIS_ADDRESS=…
+	// overwrite with environment variables if set DISCORD_BOT_TOKEN=… REDIS_ADDRESS=…
 	if os.Getenv("DISCORD_BOT_TOKEN") != "" {
-		Token = os.Getenv("DISCORD_BOT_TOKEN")
+		token = os.Getenv("DISCORD_BOT_TOKEN")
 	}
-	if os.Getenv("AWS_ENDPOINT_BASE") != "" {
-		EndpointBaseUrl = os.Getenv("AWS_ENDPOINT_BASE")
-	}
-	if os.Getenv("AWS_API_KEY") != "" {
-		ApiKey = os.Getenv("AWS_API_KEY")
+	if os.Getenv("AWS_REGION") != "" {
+		awsRegion = os.Getenv("AWS_REGION")
 	}
 	if os.Getenv("REDIS_ADDRESS") != "" {
-		RedisAddress = os.Getenv("REDIS_ADDRESS")
+		redisAddress = os.Getenv("REDIS_ADDRESS")
 	}
 }
 
 func main() {
-	Started = time.Now()
+	started = time.Now()
 	var err error
 	// get config
-	RoutingConfig, err = dhelpers.GetRoutings()
+	routingConfig, err = dhelpers.GetRoutings()
 	if err != nil {
 		fmt.Println("error getting routing config", err.Error())
 		return
 	}
-	fmt.Println("Found", len(RoutingConfig), "routing rules")
+	fmt.Println("Found", len(routingConfig), "routing rules")
 
 	// connect to aws
 	sess := session.Must(session.NewSession(&aws.Config{
-		Region: aws.String("eu-west-1"),
+		Region: aws.String(awsRegion),
 	}))
 	lambdaClient = lambda.New(sess)
 
 	// connect to redis
-	RedisClient = redis.NewClient(&redis.Options{
-		Addr:     RedisAddress,
+	redisClient = redis.NewClient(&redis.Options{
+		Addr:     redisAddress,
 		Password: "",
 		DB:       0,
 	})
 
 	// create a new Discordgo Bot Client
-	fmt.Println("Connecting to Discord, Token Length:", len(Token))
-	dg, err := discordgo.New("Bot " + Token)
+	fmt.Println("Connecting to Discord, token Length:", len(token))
+	dg, err := discordgo.New("Bot " + token)
 	if err != nil {
 		fmt.Println("error creating Discord session,", err.Error())
 		return
-	}
-
-	// create a new HTTP Client and prepare API request
-	HttpClient = http.Client{
-		Transport:     nil,
-		CheckRedirect: nil,
-		Jar:           nil,
-		Timeout:       time.Second * 10,
-	}
-	ApiRequest, err = http.NewRequest("POST", EndpointBaseUrl, nil)
-	if err != nil {
-		fmt.Println("error creating http api request,", err.Error())
-		return
-	}
-	ApiRequest.Header = http.Header{
-		"X-APi-Key":    []string{ApiKey},
-		"Content-Type": []string{"application/json"},
 	}
 
 	// add gateway ready handler
@@ -163,7 +137,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 	var handledByUs bool
 	var handled int
 
-	for _, routingEntry := range RoutingConfig {
+	for _, routingEntry := range routingConfig {
 		if handled > 0 && !routingEntry.Always {
 			continue
 		}
@@ -188,7 +162,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			}
 			// add additional state payload
 			dDEvent.BotUser = session.State.User
-			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			err = SendEvent(started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, "#", t.ID, ":", err.Error())
@@ -214,7 +188,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			if t.Guild != nil {
 				dDEvent.SourceGuild = t.Guild
 			}
-			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			err = SendEvent(started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, "#", t.ID, ":", err.Error())
@@ -239,7 +213,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			if t.Guild != nil {
 				dDEvent.SourceGuild = t.Guild
 			}
-			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			err = SendEvent(started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, "#", t.ID, ":", err.Error())
@@ -267,7 +241,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					dDEvent.SourceGuild = sourceGuild
 				}
 			}
-			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			err = SendEvent(started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
@@ -295,7 +269,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					dDEvent.SourceGuild = sourceGuild
 				}
 			}
-			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			err = SendEvent(started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
@@ -323,7 +297,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					dDEvent.SourceGuild = sourceGuild
 				}
 			}
-			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			err = SendEvent(started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
@@ -351,7 +325,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					dDEvent.SourceGuild = sourceGuild
 				}
 			}
-			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			err = SendEvent(started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
@@ -379,7 +353,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					dDEvent.SourceGuild = sourceGuild
 				}
 			}
-			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			err = SendEvent(started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
@@ -407,7 +381,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					dDEvent.SourceGuild = sourceGuild
 				}
 			}
-			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			err = SendEvent(started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
@@ -435,7 +409,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					dDEvent.SourceGuild = sourceGuild
 				}
 			}
-			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			err = SendEvent(started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
@@ -463,7 +437,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					dDEvent.SourceGuild = sourceGuild
 				}
 			}
-			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			err = SendEvent(started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
@@ -494,7 +468,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			if t.Channel != nil {
 				dDEvent.SourceChannel = t.Channel
 			}
-			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			err = SendEvent(started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, "#", t.ID, ":", err.Error())
@@ -525,7 +499,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			if t.Channel != nil {
 				dDEvent.SourceChannel = t.Channel
 			}
-			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			err = SendEvent(started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, "#", t.ID, ":", err.Error())
@@ -556,7 +530,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			if t.Channel != nil {
 				dDEvent.SourceChannel = t.Channel
 			}
-			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			err = SendEvent(started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, "#", t.ID, ":", err.Error())
@@ -596,7 +570,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					}
 				}
 			}
-			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			err = SendEvent(started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, "#", t.ID, ":", err.Error())
@@ -636,7 +610,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					}
 				}
 			}
-			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			err = SendEvent(started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, "#", t.ID, ":", err.Error())
@@ -676,7 +650,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					}
 				}
 			}
-			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			err = SendEvent(started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, "#", t.ID, ":", err.Error())
@@ -704,7 +678,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					dDEvent.SourceGuild = sourceGuild
 				}
 			}
-			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			err = SendEvent(started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
@@ -736,7 +710,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					}
 				}
 			}
-			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			err = SendEvent(started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
@@ -764,7 +738,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					dDEvent.SourceGuild = sourceGuild
 				}
 			}
-			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			err = SendEvent(started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
@@ -792,7 +766,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					dDEvent.SourceGuild = sourceGuild
 				}
 			}
-			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			err = SendEvent(started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
@@ -824,7 +798,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					}
 				}
 			}
-			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			err = SendEvent(started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
@@ -856,7 +830,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					}
 				}
 			}
-			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			err = SendEvent(started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
@@ -888,7 +862,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					}
 				}
 			}
-			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			err = SendEvent(started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
