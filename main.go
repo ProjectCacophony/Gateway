@@ -137,6 +137,11 @@ func processEvent(session *discordgo.Session, i interface{}) {
 	var handledByUs bool
 	var handled int
 
+	dDEvent := dhelpers.EventContainer{
+		ReceivedAt:     receivedAt,
+		GatewayStarted: started,
+	}
+
 	for _, routingEntry := range routingConfig {
 		if handled > 0 && !routingEntry.Always {
 			continue
@@ -153,16 +158,16 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent := dhelpers.EventGuildCreate{}
+			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
-			dDEvent.Event = t
+			dDEvent.GuildCreate = t
 			// additional payload from state
 			if t.Guild != nil {
 				dDEvent.SourceGuild = t.Guild
 			}
 			// add additional state payload
 			dDEvent.BotUser = session.State.User
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, "#", t.ID, ":", err.Error())
@@ -180,15 +185,15 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent := dhelpers.EventGuildUpdate{}
+			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
-			dDEvent.Event = t
+			dDEvent.GuildUpdate = t
 			// additional payload from state
 			dDEvent.BotUser = session.State.User
 			if t.Guild != nil {
 				dDEvent.SourceGuild = t.Guild
 			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, "#", t.ID, ":", err.Error())
@@ -205,15 +210,15 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent := dhelpers.EventGuildDelete{}
+			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
-			dDEvent.Event = t
+			dDEvent.GuildDelete = t
 			// additional payload from state
 			dDEvent.BotUser = session.State.User
 			if t.Guild != nil {
 				dDEvent.SourceGuild = t.Guild
 			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, "#", t.ID, ":", err.Error())
@@ -230,9 +235,9 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent := dhelpers.EventGuildMemberAdd{}
+			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
-			dDEvent.Event = t
+			dDEvent.GuildMemberAdd = t
 			// additional payload from state
 			dDEvent.BotUser = session.State.User
 			if t.GuildID != "" {
@@ -241,7 +246,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					dDEvent.SourceGuild = sourceGuild
 				}
 			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
@@ -258,9 +263,9 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent := dhelpers.EventGuildMemberUpdate{}
+			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
-			dDEvent.Event = t
+			dDEvent.GuildMemberUpdate = t
 			// additional payload from state
 			dDEvent.BotUser = session.State.User
 			if t.GuildID != "" {
@@ -269,7 +274,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					dDEvent.SourceGuild = sourceGuild
 				}
 			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
@@ -286,9 +291,9 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent := dhelpers.EventGuildMemberRemove{}
+			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
-			dDEvent.Event = t
+			dDEvent.GuildMemberRemove = t
 			// additional payload from state
 			dDEvent.BotUser = session.State.User
 			if t.GuildID != "" {
@@ -297,7 +302,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					dDEvent.SourceGuild = sourceGuild
 				}
 			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
@@ -314,9 +319,9 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent := dhelpers.EventGuildMembersChunk{}
+			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
-			dDEvent.Event = t
+			dDEvent.GuildMembersChunk = t
 			// additional payload from state
 			dDEvent.BotUser = session.State.User
 			if t.GuildID != "" {
@@ -325,7 +330,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					dDEvent.SourceGuild = sourceGuild
 				}
 			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
@@ -342,9 +347,9 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent := dhelpers.EventGuildRoleCreate{}
+			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
-			dDEvent.Event = t
+			dDEvent.GuildRoleCreate = t
 			// additional payload from state
 			dDEvent.BotUser = session.State.User
 			if t.GuildID != "" {
@@ -353,7 +358,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					dDEvent.SourceGuild = sourceGuild
 				}
 			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
@@ -370,9 +375,9 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent := dhelpers.EventGuildRoleUpdate{}
+			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
-			dDEvent.Event = t
+			dDEvent.GuildRoleUpdate = t
 			// additional payload from state
 			dDEvent.BotUser = session.State.User
 			if t.GuildID != "" {
@@ -381,7 +386,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					dDEvent.SourceGuild = sourceGuild
 				}
 			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
@@ -398,9 +403,9 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent := dhelpers.EventGuildRoleDelete{}
+			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
-			dDEvent.Event = t
+			dDEvent.GuildRoleDelete = t
 			// additional payload from state
 			dDEvent.BotUser = session.State.User
 			if t.GuildID != "" {
@@ -409,7 +414,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					dDEvent.SourceGuild = sourceGuild
 				}
 			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
@@ -426,9 +431,9 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent := dhelpers.EventGuildEmojisUpdate{}
+			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
-			dDEvent.Event = t
+			dDEvent.GuildEmojisUpdate = t
 			// additional payload from state
 			dDEvent.BotUser = session.State.User
 			if t.GuildID != "" {
@@ -437,7 +442,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					dDEvent.SourceGuild = sourceGuild
 				}
 			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
@@ -454,9 +459,9 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent := dhelpers.EventChannelCreate{}
+			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
-			dDEvent.Event = t
+			dDEvent.ChannelCreate = t
 			// additional payload from state
 			dDEvent.BotUser = session.State.User
 			if t.GuildID != "" {
@@ -468,7 +473,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			if t.Channel != nil {
 				dDEvent.SourceChannel = t.Channel
 			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, "#", t.ID, ":", err.Error())
@@ -485,9 +490,9 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent := dhelpers.EventChannelUpdate{}
+			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
-			dDEvent.Event = t
+			dDEvent.ChannelUpdate = t
 			// additional payload from state
 			dDEvent.BotUser = session.State.User
 			if t.GuildID != "" {
@@ -499,7 +504,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			if t.Channel != nil {
 				dDEvent.SourceChannel = t.Channel
 			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, "#", t.ID, ":", err.Error())
@@ -516,9 +521,9 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent := dhelpers.EventChannelDelete{}
+			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
-			dDEvent.Event = t
+			dDEvent.ChannelDelete = t
 			// additional payload from state
 			dDEvent.BotUser = session.State.User
 			if t.GuildID != "" {
@@ -530,7 +535,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			if t.Channel != nil {
 				dDEvent.SourceChannel = t.Channel
 			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, "#", t.ID, ":", err.Error())
@@ -553,11 +558,11 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			if !dhelpers.RoutingMatchMessage(routingEntry, t.Author, session.State.User, t.Content, args, prefix) {
 				continue
 			}
-			dDEvent := dhelpers.EventMessageCreate{}
+			dDEvent.Type = routingEntry.Type
 			dDEvent.Args = args
 			dDEvent.Prefix = prefix
 			dDEvent.Alias = routingEntry.Alias
-			dDEvent.Event = t
+			dDEvent.MessageCreate = t
 			// additional payload from state
 			dDEvent.BotUser = session.State.User
 			if t.ChannelID != "" {
@@ -570,7 +575,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					}
 				}
 			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, "#", t.ID, ":", err.Error())
@@ -593,11 +598,11 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			if !dhelpers.RoutingMatchMessage(routingEntry, t.Author, session.State.User, t.Content, args, prefix) {
 				continue
 			}
-			dDEvent := dhelpers.EventMessageUpdate{}
+			dDEvent.Type = routingEntry.Type
 			dDEvent.Args = args
 			dDEvent.Prefix = prefix
 			dDEvent.Alias = routingEntry.Alias
-			dDEvent.Event = t
+			dDEvent.MessageUpdate = t
 			// additional payload from state
 			dDEvent.BotUser = session.State.User
 			if t.ChannelID != "" {
@@ -610,7 +615,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					}
 				}
 			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, "#", t.ID, ":", err.Error())
@@ -633,11 +638,11 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			if !dhelpers.RoutingMatchMessage(routingEntry, t.Author, session.State.User, t.Content, args, prefix) {
 				continue
 			}
-			dDEvent := dhelpers.EventMessageDelete{}
+			dDEvent.Type = routingEntry.Type
 			dDEvent.Args = args
 			dDEvent.Prefix = prefix
 			dDEvent.Alias = routingEntry.Alias
-			dDEvent.Event = t
+			dDEvent.MessageDelete = t
 			// additional payload from state
 			dDEvent.BotUser = session.State.User
 			if t.ChannelID != "" {
@@ -650,7 +655,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					}
 				}
 			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, "#", t.ID, ":", err.Error())
@@ -667,9 +672,9 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent := dhelpers.EventPresenceUpdate{}
+			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
-			dDEvent.Event = t
+			dDEvent.PresenceUpdate = t
 			// additional payload from state
 			dDEvent.BotUser = session.State.User
 			if t.GuildID != "" {
@@ -678,7 +683,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					dDEvent.SourceGuild = sourceGuild
 				}
 			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
@@ -695,9 +700,9 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent := dhelpers.EventChannelPinsUpdate{}
+			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
-			dDEvent.Event = t
+			dDEvent.ChannelPinsUpdate = t
 			// additional payload from state
 			dDEvent.BotUser = session.State.User
 			if t.ChannelID != "" {
@@ -710,7 +715,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					}
 				}
 			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
@@ -727,9 +732,9 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent := dhelpers.EventGuildBanAdd{}
+			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
-			dDEvent.Event = t
+			dDEvent.GuildBanAdd = t
 			// additional payload from state
 			dDEvent.BotUser = session.State.User
 			if t.GuildID != "" {
@@ -738,7 +743,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					dDEvent.SourceGuild = sourceGuild
 				}
 			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
@@ -755,9 +760,9 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent := dhelpers.EventGuildBanRemove{}
+			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
-			dDEvent.Event = t
+			dDEvent.GuildBanRemove = t
 			// additional payload from state
 			dDEvent.BotUser = session.State.User
 			if t.GuildID != "" {
@@ -766,7 +771,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					dDEvent.SourceGuild = sourceGuild
 				}
 			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
@@ -783,9 +788,9 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent := dhelpers.EventMessageReactionAdd{}
+			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
-			dDEvent.Event = t
+			dDEvent.MessageReactionAdd = t
 			// additional payload from state
 			dDEvent.BotUser = session.State.User
 			if t.ChannelID != "" {
@@ -798,7 +803,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					}
 				}
 			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
@@ -815,9 +820,9 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent := dhelpers.EventMessageReactionRemove{}
+			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
-			dDEvent.Event = t
+			dDEvent.MessageReactionRemove = t
 			// additional payload from state
 			dDEvent.BotUser = session.State.User
 			if t.ChannelID != "" {
@@ -830,7 +835,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					}
 				}
 			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
@@ -847,9 +852,9 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent := dhelpers.EventMessageReactionRemoveAll{}
+			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
-			dDEvent.Event = t
+			dDEvent.MessageReactionRemoveAll = t
 			// additional payload from state
 			dDEvent.BotUser = session.State.User
 			if t.ChannelID != "" {
@@ -862,7 +867,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					}
 				}
 			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
+			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
