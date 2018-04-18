@@ -5,7 +5,7 @@
     "Type": [
       "MESSAGE_CREATE"
     ],
-    "Endpoint": "/greeter",
+    "Function": "dfunction-greeter",
     "Requirements": [
       {
         "Alias": "greeter",
@@ -25,7 +25,7 @@
       "GUILD_MEMBER_ADD",
       "GUILD_MEMBER_REMOVE"
     ],
-    "Endpoint": "/greeter",
+    "Function": "dfunction-greeter",
     "Requirements": [],
     "Always": true,
     "Priority": 100
@@ -36,7 +36,7 @@
     "Type": [
       "MESSAGE_CREATE"
     ],
-    "Endpoint": "/trigger-pong",
+    "Function": "dfunction-pong",
     "Requirements": [
       {
         "Alias": "ping",
@@ -69,7 +69,7 @@
     "Type": [
       "MESSAGE_CREATE"
     ],
-    "Endpoint": "/customcommands",
+    "Function": "dfunction-customcommands",
     "Requirements": [],
     "Always": false,
     "Priority": -1
@@ -82,7 +82,7 @@
       "MESSAGE_DELETE",
       "MESSAGE_UPDATE"
     ],
-    "Endpoint": "/store-chatlog",
+    "Function": "dfunction-store-chatlog",
     "Requirements": [],
     "Always": true,
     "Priority": -10,

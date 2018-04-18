@@ -12,6 +12,9 @@ import (
 
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/bwmarrin/discordgo"
 	"github.com/go-redis/redis"
 	"gitlab.com/project-d-collab/dhelpers"
@@ -29,6 +32,7 @@ var (
 	RedisClient     *redis.Client
 	Started         time.Time
 	didLaunch       bool
+	lambdaClient    *lambda.Lambda
 )
 
 func init() {
@@ -63,6 +67,12 @@ func main() {
 		return
 	}
 	fmt.Println("Found", len(RoutingConfig), "routing rules")
+
+	// connect to aws
+	sess := session.Must(session.NewSession(&aws.Config{
+		Region: aws.String("eu-west-1"),
+	}))
+	lambdaClient = lambda.New(sess)
 
 	// connect to redis
 	RedisClient = redis.NewClient(&redis.Options{
@@ -147,25 +157,9 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 // processes discord events
 func processEvent(session *discordgo.Session, i interface{}) {
 	var err error
+	receivedAt := time.Now()
 
 	// create enhanced Event
-	dDEvent := dhelpers.Event{
-		Type:              "",
-		Event:             i,
-		BotUser:           nil,
-		SourceChannel:     nil,
-		SourceGuild:       nil,
-		GatewayReceivedAt: time.Now(),
-		GatewayStarted:    Started,
-		Prefix:            "",
-	}
-	// add additional state payload
-	if session != nil && session.State != nil {
-		if session.State.User != nil {
-			dDEvent.BotUser = session.State.User
-		}
-	}
-
 	var handledByUs bool
 	var handled int
 
@@ -185,19 +179,21 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent.Type = routingEntry.Type
+			dDEvent := dhelpers.EventGuildCreate{}
 			dDEvent.Alias = routingEntry.Alias
 			dDEvent.Event = t
 			// additional payload from state
 			if t.Guild != nil {
 				dDEvent.SourceGuild = t.Guild
 			}
-			err = SendEvent(dDEvent, routingEntry.Endpoint)
+			// add additional state payload
+			dDEvent.BotUser = session.State.User
+			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, "#", t.ID, ":", err.Error())
 			} else {
-				fmt.Println("sent event", routingEntry.Type, "#", t.ID, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
+				fmt.Println("sent event", routingEntry.Type, "#", t.ID, "to", routingEntry.Function, "alias", routingEntry.Alias)
 			}
 			continue
 		case *discordgo.GuildUpdate:
@@ -210,19 +206,20 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent.Type = routingEntry.Type
+			dDEvent := dhelpers.EventGuildUpdate{}
 			dDEvent.Alias = routingEntry.Alias
 			dDEvent.Event = t
 			// additional payload from state
+			dDEvent.BotUser = session.State.User
 			if t.Guild != nil {
 				dDEvent.SourceGuild = t.Guild
 			}
-			err = SendEvent(dDEvent, routingEntry.Endpoint)
+			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, "#", t.ID, ":", err.Error())
 			} else {
-				fmt.Println("sent event", routingEntry.Type, "#", t.ID, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
+				fmt.Println("sent event", routingEntry.Type, "#", t.ID, "to", routingEntry.Function, "alias", routingEntry.Alias)
 			}
 		case *discordgo.GuildDelete:
 			if routingEntry.Type != dhelpers.GuildDeleteEventType {
@@ -234,19 +231,20 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent.Type = routingEntry.Type
+			dDEvent := dhelpers.EventGuildDelete{}
 			dDEvent.Alias = routingEntry.Alias
 			dDEvent.Event = t
 			// additional payload from state
+			dDEvent.BotUser = session.State.User
 			if t.Guild != nil {
 				dDEvent.SourceGuild = t.Guild
 			}
-			err = SendEvent(dDEvent, routingEntry.Endpoint)
+			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, "#", t.ID, ":", err.Error())
 			} else {
-				fmt.Println("sent event", routingEntry.Type, "#", t.ID, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
+				fmt.Println("sent event", routingEntry.Type, "#", t.ID, "to", routingEntry.Function, "alias", routingEntry.Alias)
 			}
 		case *discordgo.GuildMemberAdd:
 			if routingEntry.Type != dhelpers.GuildMemberAddEventType {
@@ -258,22 +256,23 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent.Type = routingEntry.Type
+			dDEvent := dhelpers.EventGuildMemberAdd{}
 			dDEvent.Alias = routingEntry.Alias
 			dDEvent.Event = t
 			// additional payload from state
+			dDEvent.BotUser = session.State.User
 			if t.GuildID != "" {
 				sourceGuild, err := session.State.Guild(t.GuildID)
 				if err == nil {
 					dDEvent.SourceGuild = sourceGuild
 				}
 			}
-			err = SendEvent(dDEvent, routingEntry.Endpoint)
+			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
 			} else {
-				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
+				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Function, "alias", routingEntry.Alias)
 			}
 		case *discordgo.GuildMemberUpdate:
 			if routingEntry.Type != dhelpers.GuildMemberUpdateEventType {
@@ -285,22 +284,23 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent.Type = routingEntry.Type
+			dDEvent := dhelpers.EventGuildMemberUpdate{}
 			dDEvent.Alias = routingEntry.Alias
 			dDEvent.Event = t
 			// additional payload from state
+			dDEvent.BotUser = session.State.User
 			if t.GuildID != "" {
 				sourceGuild, err := session.State.Guild(t.GuildID)
 				if err == nil {
 					dDEvent.SourceGuild = sourceGuild
 				}
 			}
-			err = SendEvent(dDEvent, routingEntry.Endpoint)
+			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
 			} else {
-				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
+				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Function, "alias", routingEntry.Alias)
 			}
 		case *discordgo.GuildMemberRemove:
 			if routingEntry.Type != dhelpers.GuildMemberRemoveEventType {
@@ -312,22 +312,23 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent.Type = routingEntry.Type
+			dDEvent := dhelpers.EventGuildMemberRemove{}
 			dDEvent.Alias = routingEntry.Alias
 			dDEvent.Event = t
 			// additional payload from state
+			dDEvent.BotUser = session.State.User
 			if t.GuildID != "" {
 				sourceGuild, err := session.State.Guild(t.GuildID)
 				if err == nil {
 					dDEvent.SourceGuild = sourceGuild
 				}
 			}
-			err = SendEvent(dDEvent, routingEntry.Endpoint)
+			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
 			} else {
-				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
+				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Function, "alias", routingEntry.Alias)
 			}
 		case *discordgo.GuildMembersChunk:
 			if routingEntry.Type != dhelpers.GuildMembersChunkEventType {
@@ -339,22 +340,23 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent.Type = routingEntry.Type
+			dDEvent := dhelpers.EventGuildMembersChunk{}
 			dDEvent.Alias = routingEntry.Alias
 			dDEvent.Event = t
 			// additional payload from state
+			dDEvent.BotUser = session.State.User
 			if t.GuildID != "" {
 				sourceGuild, err := session.State.Guild(t.GuildID)
 				if err == nil {
 					dDEvent.SourceGuild = sourceGuild
 				}
 			}
-			err = SendEvent(dDEvent, routingEntry.Endpoint)
+			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
 			} else {
-				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
+				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Function, "alias", routingEntry.Alias)
 			}
 		case *discordgo.GuildRoleCreate:
 			if routingEntry.Type != dhelpers.GuildRoleCreateEventType {
@@ -366,22 +368,23 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent.Type = routingEntry.Type
+			dDEvent := dhelpers.EventGuildRoleCreate{}
 			dDEvent.Alias = routingEntry.Alias
 			dDEvent.Event = t
 			// additional payload from state
+			dDEvent.BotUser = session.State.User
 			if t.GuildID != "" {
 				sourceGuild, err := session.State.Guild(t.GuildID)
 				if err == nil {
 					dDEvent.SourceGuild = sourceGuild
 				}
 			}
-			err = SendEvent(dDEvent, routingEntry.Endpoint)
+			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
 			} else {
-				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
+				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Function, "alias", routingEntry.Alias)
 			}
 		case *discordgo.GuildRoleUpdate:
 			if routingEntry.Type != dhelpers.GuildRoleUpdateEventType {
@@ -393,22 +396,23 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent.Type = routingEntry.Type
+			dDEvent := dhelpers.EventGuildRoleUpdate{}
 			dDEvent.Alias = routingEntry.Alias
 			dDEvent.Event = t
 			// additional payload from state
+			dDEvent.BotUser = session.State.User
 			if t.GuildID != "" {
 				sourceGuild, err := session.State.Guild(t.GuildID)
 				if err == nil {
 					dDEvent.SourceGuild = sourceGuild
 				}
 			}
-			err = SendEvent(dDEvent, routingEntry.Endpoint)
+			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
 			} else {
-				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
+				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Function, "alias", routingEntry.Alias)
 			}
 		case *discordgo.GuildRoleDelete:
 			if routingEntry.Type != dhelpers.GuildRoleDeleteEventType {
@@ -420,22 +424,23 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent.Type = routingEntry.Type
+			dDEvent := dhelpers.EventGuildRoleDelete{}
 			dDEvent.Alias = routingEntry.Alias
 			dDEvent.Event = t
 			// additional payload from state
+			dDEvent.BotUser = session.State.User
 			if t.GuildID != "" {
 				sourceGuild, err := session.State.Guild(t.GuildID)
 				if err == nil {
 					dDEvent.SourceGuild = sourceGuild
 				}
 			}
-			err = SendEvent(dDEvent, routingEntry.Endpoint)
+			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
 			} else {
-				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
+				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Function, "alias", routingEntry.Alias)
 			}
 		case *discordgo.GuildEmojisUpdate:
 			if routingEntry.Type != dhelpers.GuildEmojisUpdateEventType {
@@ -447,22 +452,23 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent.Type = routingEntry.Type
+			dDEvent := dhelpers.EventGuildEmojisUpdate{}
 			dDEvent.Alias = routingEntry.Alias
 			dDEvent.Event = t
 			// additional payload from state
+			dDEvent.BotUser = session.State.User
 			if t.GuildID != "" {
 				sourceGuild, err := session.State.Guild(t.GuildID)
 				if err == nil {
 					dDEvent.SourceGuild = sourceGuild
 				}
 			}
-			err = SendEvent(dDEvent, routingEntry.Endpoint)
+			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
 			} else {
-				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
+				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Function, "alias", routingEntry.Alias)
 			}
 		case *discordgo.ChannelCreate:
 			if routingEntry.Type != dhelpers.ChannelCreateEventType {
@@ -474,10 +480,11 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent.Type = routingEntry.Type
+			dDEvent := dhelpers.EventChannelCreate{}
 			dDEvent.Alias = routingEntry.Alias
 			dDEvent.Event = t
 			// additional payload from state
+			dDEvent.BotUser = session.State.User
 			if t.GuildID != "" {
 				sourceGuild, err := session.State.Guild(t.GuildID)
 				if err == nil {
@@ -487,12 +494,12 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			if t.Channel != nil {
 				dDEvent.SourceChannel = t.Channel
 			}
-			err = SendEvent(dDEvent, routingEntry.Endpoint)
+			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, "#", t.ID, ":", err.Error())
 			} else {
-				fmt.Println("sent event", routingEntry.Type, "#", t.ID, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
+				fmt.Println("sent event", routingEntry.Type, "#", t.ID, "to", routingEntry.Function, "alias", routingEntry.Alias)
 			}
 		case *discordgo.ChannelUpdate:
 			if routingEntry.Type != dhelpers.ChannelUpdateEventType {
@@ -504,10 +511,11 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent.Type = routingEntry.Type
+			dDEvent := dhelpers.EventChannelUpdate{}
 			dDEvent.Alias = routingEntry.Alias
 			dDEvent.Event = t
 			// additional payload from state
+			dDEvent.BotUser = session.State.User
 			if t.GuildID != "" {
 				sourceGuild, err := session.State.Guild(t.GuildID)
 				if err == nil {
@@ -517,12 +525,12 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			if t.Channel != nil {
 				dDEvent.SourceChannel = t.Channel
 			}
-			err = SendEvent(dDEvent, routingEntry.Endpoint)
+			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, "#", t.ID, ":", err.Error())
 			} else {
-				fmt.Println("sent event", routingEntry.Type, "#", t.ID, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
+				fmt.Println("sent event", routingEntry.Type, "#", t.ID, "to", routingEntry.Function, "alias", routingEntry.Alias)
 			}
 		case *discordgo.ChannelDelete:
 			if routingEntry.Type != dhelpers.ChannelDeleteEventType {
@@ -534,10 +542,11 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent.Type = routingEntry.Type
+			dDEvent := dhelpers.EventChannelDelete{}
 			dDEvent.Alias = routingEntry.Alias
 			dDEvent.Event = t
 			// additional payload from state
+			dDEvent.BotUser = session.State.User
 			if t.GuildID != "" {
 				sourceGuild, err := session.State.Guild(t.GuildID)
 				if err == nil {
@@ -547,12 +556,12 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			if t.Channel != nil {
 				dDEvent.SourceChannel = t.Channel
 			}
-			err = SendEvent(dDEvent, routingEntry.Endpoint)
+			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, "#", t.ID, ":", err.Error())
 			} else {
-				fmt.Println("sent event", routingEntry.Type, "#", t.ID, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
+				fmt.Println("sent event", routingEntry.Type, "#", t.ID, "to", routingEntry.Function, "alias", routingEntry.Alias)
 			}
 		case *discordgo.MessageCreate:
 			if routingEntry.Type != dhelpers.MessageCreateEventType {
@@ -570,12 +579,13 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			if !dhelpers.RoutingMatchMessage(routingEntry, t.Author, session.State.User, t.Content, args, prefix) {
 				continue
 			}
+			dDEvent := dhelpers.EventMessageCreate{}
 			dDEvent.Args = args
 			dDEvent.Prefix = prefix
-			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
 			dDEvent.Event = t
 			// additional payload from state
+			dDEvent.BotUser = session.State.User
 			if t.ChannelID != "" {
 				sourceChannel, err := session.State.Channel(t.ChannelID)
 				if err == nil {
@@ -586,12 +596,12 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					}
 				}
 			}
-			err = SendEvent(dDEvent, routingEntry.Endpoint)
+			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, "#", t.ID, ":", err.Error())
 			} else {
-				fmt.Println("sent event", routingEntry.Type, "#", t.ID, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
+				fmt.Println("sent event", routingEntry.Type, "#", t.ID, "to", routingEntry.Function, "alias", routingEntry.Alias)
 			}
 		case *discordgo.MessageUpdate:
 			if routingEntry.Type != dhelpers.MessageUpdateEventType {
@@ -609,12 +619,13 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			if !dhelpers.RoutingMatchMessage(routingEntry, t.Author, session.State.User, t.Content, args, prefix) {
 				continue
 			}
+			dDEvent := dhelpers.EventMessageUpdate{}
 			dDEvent.Args = args
 			dDEvent.Prefix = prefix
-			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
 			dDEvent.Event = t
 			// additional payload from state
+			dDEvent.BotUser = session.State.User
 			if t.ChannelID != "" {
 				sourceChannel, err := session.State.Channel(t.ChannelID)
 				if err == nil {
@@ -625,12 +636,12 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					}
 				}
 			}
-			err = SendEvent(dDEvent, routingEntry.Endpoint)
+			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, "#", t.ID, ":", err.Error())
 			} else {
-				fmt.Println("sent event", routingEntry.Type, "#", t.ID, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
+				fmt.Println("sent event", routingEntry.Type, "#", t.ID, "to", routingEntry.Function, "alias", routingEntry.Alias)
 			}
 		case *discordgo.MessageDelete:
 			if routingEntry.Type != dhelpers.MessageDeleteEventType {
@@ -648,12 +659,13 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			if !dhelpers.RoutingMatchMessage(routingEntry, t.Author, session.State.User, t.Content, args, prefix) {
 				continue
 			}
+			dDEvent := dhelpers.EventMessageDelete{}
 			dDEvent.Args = args
 			dDEvent.Prefix = prefix
-			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
 			dDEvent.Event = t
 			// additional payload from state
+			dDEvent.BotUser = session.State.User
 			if t.ChannelID != "" {
 				sourceChannel, err := session.State.Channel(t.ChannelID)
 				if err == nil {
@@ -664,12 +676,12 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					}
 				}
 			}
-			err = SendEvent(dDEvent, routingEntry.Endpoint)
+			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, "#", t.ID, ":", err.Error())
 			} else {
-				fmt.Println("sent event", routingEntry.Type, "#", t.ID, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
+				fmt.Println("sent event", routingEntry.Type, "#", t.ID, "to", routingEntry.Function, "alias", routingEntry.Alias)
 			}
 		case *discordgo.PresenceUpdate:
 			if routingEntry.Type != dhelpers.PresenceUpdateEventType {
@@ -681,22 +693,23 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent.Type = routingEntry.Type
+			dDEvent := dhelpers.EventPresenceUpdate{}
 			dDEvent.Alias = routingEntry.Alias
 			dDEvent.Event = t
 			// additional payload from state
+			dDEvent.BotUser = session.State.User
 			if t.GuildID != "" {
 				sourceGuild, err := session.State.Guild(t.GuildID)
 				if err == nil {
 					dDEvent.SourceGuild = sourceGuild
 				}
 			}
-			err = SendEvent(dDEvent, routingEntry.Endpoint)
+			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
 			} else {
-				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
+				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Function, "alias", routingEntry.Alias)
 			}
 		case *discordgo.ChannelPinsUpdate:
 			if routingEntry.Type != dhelpers.ChannelPinsUpdateEventType {
@@ -708,10 +721,11 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent.Type = routingEntry.Type
+			dDEvent := dhelpers.EventChannelPinsUpdate{}
 			dDEvent.Alias = routingEntry.Alias
 			dDEvent.Event = t
 			// additional payload from state
+			dDEvent.BotUser = session.State.User
 			if t.ChannelID != "" {
 				sourceChannel, err := session.State.Channel(t.ChannelID)
 				if err == nil {
@@ -722,12 +736,12 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					}
 				}
 			}
-			err = SendEvent(dDEvent, routingEntry.Endpoint)
+			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
 			} else {
-				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
+				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Function, "alias", routingEntry.Alias)
 			}
 		case *discordgo.GuildBanAdd:
 			if routingEntry.Type != dhelpers.GuildBanAddEventType {
@@ -739,22 +753,23 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent.Type = routingEntry.Type
+			dDEvent := dhelpers.EventGuildBanAdd{}
 			dDEvent.Alias = routingEntry.Alias
 			dDEvent.Event = t
 			// additional payload from state
+			dDEvent.BotUser = session.State.User
 			if t.GuildID != "" {
 				sourceGuild, err := session.State.Guild(t.GuildID)
 				if err == nil {
 					dDEvent.SourceGuild = sourceGuild
 				}
 			}
-			err = SendEvent(dDEvent, routingEntry.Endpoint)
+			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
 			} else {
-				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
+				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Function, "alias", routingEntry.Alias)
 			}
 		case *discordgo.GuildBanRemove:
 			if routingEntry.Type != dhelpers.GuildBanRemoveEventType {
@@ -766,22 +781,23 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent.Type = routingEntry.Type
+			dDEvent := dhelpers.EventGuildBanRemove{}
 			dDEvent.Alias = routingEntry.Alias
 			dDEvent.Event = t
 			// additional payload from state
+			dDEvent.BotUser = session.State.User
 			if t.GuildID != "" {
 				sourceGuild, err := session.State.Guild(t.GuildID)
 				if err == nil {
 					dDEvent.SourceGuild = sourceGuild
 				}
 			}
-			err = SendEvent(dDEvent, routingEntry.Endpoint)
+			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
 			} else {
-				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
+				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Function, "alias", routingEntry.Alias)
 			}
 		case *discordgo.MessageReactionAdd:
 			if routingEntry.Type != dhelpers.MessageReactionAddEventType {
@@ -793,10 +809,11 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent.Type = routingEntry.Type
+			dDEvent := dhelpers.EventMessageReactionAdd{}
 			dDEvent.Alias = routingEntry.Alias
 			dDEvent.Event = t
 			// additional payload from state
+			dDEvent.BotUser = session.State.User
 			if t.ChannelID != "" {
 				sourceChannel, err := session.State.Channel(t.ChannelID)
 				if err == nil {
@@ -807,12 +824,12 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					}
 				}
 			}
-			err = SendEvent(dDEvent, routingEntry.Endpoint)
+			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
 			} else {
-				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
+				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Function, "alias", routingEntry.Alias)
 			}
 		case *discordgo.MessageReactionRemove:
 			if routingEntry.Type != dhelpers.MessageReactionRemoveEventType {
@@ -824,10 +841,11 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent.Type = routingEntry.Type
+			dDEvent := dhelpers.EventMessageReactionRemove{}
 			dDEvent.Alias = routingEntry.Alias
 			dDEvent.Event = t
 			// additional payload from state
+			dDEvent.BotUser = session.State.User
 			if t.ChannelID != "" {
 				sourceChannel, err := session.State.Channel(t.ChannelID)
 				if err == nil {
@@ -838,12 +856,12 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					}
 				}
 			}
-			err = SendEvent(dDEvent, routingEntry.Endpoint)
+			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
 			} else {
-				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
+				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Function, "alias", routingEntry.Alias)
 			}
 		case *discordgo.MessageReactionRemoveAll:
 			if routingEntry.Type != dhelpers.MessageReactionRemoveAllEventType {
@@ -855,10 +873,11 @@ func processEvent(session *discordgo.Session, i interface{}) {
 			} else {
 				handledByUs = true
 			}
-			dDEvent.Type = routingEntry.Type
+			dDEvent := dhelpers.EventMessageReactionRemoveAll{}
 			dDEvent.Alias = routingEntry.Alias
 			dDEvent.Event = t
 			// additional payload from state
+			dDEvent.BotUser = session.State.User
 			if t.ChannelID != "" {
 				sourceChannel, err := session.State.Channel(t.ChannelID)
 				if err == nil {
@@ -869,12 +888,12 @@ func processEvent(session *discordgo.Session, i interface{}) {
 					}
 				}
 			}
-			err = SendEvent(dDEvent, routingEntry.Endpoint)
+			err = SendEvent(Started, receivedAt, routingEntry.Type, dDEvent, routingEntry.Function)
 			handled++
 			if err != nil {
 				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
 			} else {
-				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Endpoint, "alias", routingEntry.Alias)
+				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Function, "alias", routingEntry.Alias)
 			}
 		}
 	}
