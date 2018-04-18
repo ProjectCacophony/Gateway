@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	PREFIX          = "/" // TODO
+	PREFIXES        = []string{"/"} // TODO
 	Token           string
 	EndpointBaseUrl string
 	ApiKey          string
@@ -28,6 +28,7 @@ var (
 	RoutingConfig   []dhelpers.RoutingRule
 	RedisClient     *redis.Client
 	Started         time.Time
+	didLaunch       bool
 )
 
 func init() {
@@ -95,7 +96,9 @@ func main() {
 		"Content-Type": []string{"application/json"},
 	}
 
-	// add the MessageCreate handler
+	// add gateway ready handler
+	dg.AddHandler(BotOnReady)
+	// add the discord event handler
 	dg.AddHandler(eventHandler)
 
 	// open Discord Websocket connection
@@ -105,9 +108,6 @@ func main() {
 		return
 	}
 
-	// TODO: request guild member chunks for large guilds, and for new guilds
-	// TODO: persist and restore state?
-
 	// wait for CTRL+C to stop the Bot
 	fmt.Println("Bot is now running. Press CTRL-C to exit.")
 	sc := make(chan os.Signal, 1)
@@ -116,6 +116,27 @@ func main() {
 
 	// disconnect from Discord Websocket
 	dg.Close()
+}
+
+func BotOnReady(session *discordgo.Session, event *discordgo.Ready) {
+	if !didLaunch {
+		OnFirstReady(session, event)
+		didLaunch = true
+	} else {
+		OnReconnect(session, event)
+	}
+}
+
+func OnFirstReady(session *discordgo.Session, event *discordgo.Ready) {
+	PREFIXES = append(PREFIXES, "<@"+session.State.User.ID+">")  // add bot mention to prefixes
+	PREFIXES = append(PREFIXES, "<@!"+session.State.User.ID+">") // add bot alias mention to prefixes
+	// TODO: request guild member chunks for large guilds, and for new guilds
+	// TODO: persist and restore state?
+}
+
+func OnReconnect(session *discordgo.Session, event *discordgo.Ready) {
+	// TODO: request guild member chunks for large guilds, and for new guilds
+	// TODO: persist and restore state?
 }
 
 // discord event handler
@@ -136,7 +157,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 		SourceGuild:       nil,
 		GatewayReceivedAt: time.Now(),
 		GatewayStarted:    Started,
-		Prefix:            PREFIX,
+		Prefix:            "",
 	}
 	// add additional state payload
 	if session != nil && session.State != nil {
@@ -145,6 +166,7 @@ func processEvent(session *discordgo.Session, i interface{}) {
 		}
 	}
 
+	var handledByUs bool
 	var handled int
 
 	for _, routingEntry := range RoutingConfig {
@@ -158,8 +180,10 @@ func processEvent(session *discordgo.Session, i interface{}) {
 				continue
 			}
 			// deduplication
-			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Guild)) {
+			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Guild)) {
 				return
+			} else {
+				handledByUs = true
 			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
@@ -181,8 +205,10 @@ func processEvent(session *discordgo.Session, i interface{}) {
 				continue
 			}
 			// deduplication
-			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Guild)) {
+			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Guild)) {
 				return
+			} else {
+				handledByUs = true
 			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
@@ -203,8 +229,10 @@ func processEvent(session *discordgo.Session, i interface{}) {
 				continue
 			}
 			// deduplication
-			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Guild)) {
+			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Guild)) {
 				return
+			} else {
+				handledByUs = true
 			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
@@ -225,8 +253,10 @@ func processEvent(session *discordgo.Session, i interface{}) {
 				continue
 			}
 			// deduplication
-			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Member)) {
+			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Member)) {
 				return
+			} else {
+				handledByUs = true
 			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
@@ -250,8 +280,10 @@ func processEvent(session *discordgo.Session, i interface{}) {
 				continue
 			}
 			// deduplication
-			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Member)) {
+			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Member)) {
 				return
+			} else {
+				handledByUs = true
 			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
@@ -275,8 +307,10 @@ func processEvent(session *discordgo.Session, i interface{}) {
 				continue
 			}
 			// deduplication
-			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Member)) {
+			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Member)) {
 				return
+			} else {
+				handledByUs = true
 			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
@@ -300,8 +334,10 @@ func processEvent(session *discordgo.Session, i interface{}) {
 				continue
 			}
 			// deduplication
-			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%s %v", t.GuildID, t.Members)) {
+			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%s %v", t.GuildID, t.Members)) {
 				return
+			} else {
+				handledByUs = true
 			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
@@ -325,8 +361,10 @@ func processEvent(session *discordgo.Session, i interface{}) {
 				continue
 			}
 			// deduplication
-			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.GuildRole)) {
+			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.GuildRole)) {
 				return
+			} else {
+				handledByUs = true
 			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
@@ -350,8 +388,10 @@ func processEvent(session *discordgo.Session, i interface{}) {
 				continue
 			}
 			// deduplication
-			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.GuildRole)) {
+			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.GuildRole)) {
 				return
+			} else {
+				handledByUs = true
 			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
@@ -375,8 +415,10 @@ func processEvent(session *discordgo.Session, i interface{}) {
 				continue
 			}
 			// deduplication
-			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%s %s", t.RoleID, t.GuildID)) {
+			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%s %s", t.RoleID, t.GuildID)) {
 				return
+			} else {
+				handledByUs = true
 			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
@@ -400,8 +442,10 @@ func processEvent(session *discordgo.Session, i interface{}) {
 				continue
 			}
 			// deduplication
-			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%s %v", t.GuildID, t.Emojis)) {
+			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%s %v", t.GuildID, t.Emojis)) {
 				return
+			} else {
+				handledByUs = true
 			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
@@ -425,8 +469,10 @@ func processEvent(session *discordgo.Session, i interface{}) {
 				continue
 			}
 			// deduplication
-			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Channel)) {
+			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Channel)) {
 				return
+			} else {
+				handledByUs = true
 			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
@@ -453,8 +499,10 @@ func processEvent(session *discordgo.Session, i interface{}) {
 				continue
 			}
 			// deduplication
-			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Channel)) {
+			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Channel)) {
 				return
+			} else {
+				handledByUs = true
 			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
@@ -481,8 +529,10 @@ func processEvent(session *discordgo.Session, i interface{}) {
 				continue
 			}
 			// deduplication
-			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Channel)) {
+			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Channel)) {
 				return
+			} else {
+				handledByUs = true
 			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
@@ -509,13 +559,19 @@ func processEvent(session *discordgo.Session, i interface{}) {
 				continue
 			}
 			// deduplication
-			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Message)) {
+			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Message)) {
 				return
+			} else {
+				handledByUs = true
 			}
+			// args and prefix
+			args, prefix := dhelpers.GetMessageArguments(t.Content, PREFIXES)
 			// check requirements
-			if !dhelpers.RoutingMatchMessage(routingEntry, t.Content, PREFIX) {
+			if !dhelpers.RoutingMatchMessage(routingEntry, t.Author, session.State.User, t.Content, args, prefix) {
 				continue
 			}
+			dDEvent.Args = args
+			dDEvent.Prefix = prefix
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
 			dDEvent.Event = t
@@ -542,13 +598,19 @@ func processEvent(session *discordgo.Session, i interface{}) {
 				continue
 			}
 			// deduplication
-			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Message)) {
+			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Message)) {
 				return
+			} else {
+				handledByUs = true
 			}
+			// args and prefix
+			args, prefix := dhelpers.GetMessageArguments(t.Content, PREFIXES)
 			// check requirements
-			if !dhelpers.RoutingMatchMessage(routingEntry, t.Content, PREFIX) {
+			if !dhelpers.RoutingMatchMessage(routingEntry, t.Author, session.State.User, t.Content, args, prefix) {
 				continue
 			}
+			dDEvent.Args = args
+			dDEvent.Prefix = prefix
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
 			dDEvent.Event = t
@@ -575,13 +637,19 @@ func processEvent(session *discordgo.Session, i interface{}) {
 				continue
 			}
 			// deduplication
-			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Message)) {
+			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Message)) {
 				return
+			} else {
+				handledByUs = true
 			}
+			// args and prefix
+			args, prefix := dhelpers.GetMessageArguments(t.Content, PREFIXES)
 			// check requirements
-			if !dhelpers.RoutingMatchMessage(routingEntry, t.Content, PREFIX) {
+			if !dhelpers.RoutingMatchMessage(routingEntry, t.Author, session.State.User, t.Content, args, prefix) {
 				continue
 			}
+			dDEvent.Args = args
+			dDEvent.Prefix = prefix
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
 			dDEvent.Event = t
@@ -608,8 +676,10 @@ func processEvent(session *discordgo.Session, i interface{}) {
 				continue
 			}
 			// deduplication
-			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v %s %v", t.Presence, t.GuildID, t.Roles)) {
+			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v %s %v", t.Presence, t.GuildID, t.Roles)) {
 				return
+			} else {
+				handledByUs = true
 			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
@@ -633,8 +703,10 @@ func processEvent(session *discordgo.Session, i interface{}) {
 				continue
 			}
 			// deduplication
-			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%s %s", t.LastPinTimestamp, t.ChannelID)) {
+			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%s %s", t.LastPinTimestamp, t.ChannelID)) {
 				return
+			} else {
+				handledByUs = true
 			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
@@ -662,8 +734,10 @@ func processEvent(session *discordgo.Session, i interface{}) {
 				continue
 			}
 			// deduplication
-			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v %s", t.User, t.GuildID)) {
+			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v %s", t.User, t.GuildID)) {
 				return
+			} else {
+				handledByUs = true
 			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
@@ -687,8 +761,10 @@ func processEvent(session *discordgo.Session, i interface{}) {
 				continue
 			}
 			// deduplication
-			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v %s", t.User, t.GuildID)) {
+			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v %s", t.User, t.GuildID)) {
 				return
+			} else {
+				handledByUs = true
 			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
@@ -712,8 +788,10 @@ func processEvent(session *discordgo.Session, i interface{}) {
 				continue
 			}
 			// deduplication
-			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.MessageReaction)) {
+			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.MessageReaction)) {
 				return
+			} else {
+				handledByUs = true
 			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
@@ -741,8 +819,10 @@ func processEvent(session *discordgo.Session, i interface{}) {
 				continue
 			}
 			// deduplication
-			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.MessageReaction)) {
+			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.MessageReaction)) {
 				return
+			} else {
+				handledByUs = true
 			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias
@@ -770,8 +850,10 @@ func processEvent(session *discordgo.Session, i interface{}) {
 				continue
 			}
 			// deduplication
-			if !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.MessageReaction)) {
+			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.MessageReaction)) {
 				return
+			} else {
+				handledByUs = true
 			}
 			dDEvent.Type = routingEntry.Type
 			dDEvent.Alias = routingEntry.Alias

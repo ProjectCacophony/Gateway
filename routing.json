@@ -51,6 +51,13 @@
         "Regex": "",
         "DoNotPrependPrefix": false,
         "CaseSensitive": false
+      },
+      {
+        "Alias": "ping-myself",
+        "Beginning": "ping-myself",
+        "Regex": "",
+        "DoNotPrependPrefix": false,
+        "CaseSensitive": false
       }
     ],
     "Always": false,
@@ -78,6 +85,8 @@
     "Endpoint": "/store-chatlog",
     "Requirements": [],
     "Always": true,
-    "Priority": -10
+    "Priority": -10,
+    "AllowMyself": true,
+    "AllowBots": true
   }
 ]
