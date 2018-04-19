@@ -139,13 +139,13 @@ func OnReconnect(session *discordgo.Session, event *discordgo.Ready) {
 func eventHandler(session *discordgo.Session, i interface{}) {
 	receivedAt := time.Now()
 
-	eventKey := getEventKey(receivedAt, i)
+	eventKey := dhelpers.GetEventKey(receivedAt, i)
 
 	if eventKey == "" {
 		return
 	}
 
-	if !isNewEvent(eventKey) {
+	if !dhelpers.IsNewEvent(redisClient, "gateway", eventKey) {
 		fmt.Println(eventKey+":", "ignored (handled by different gateway)")
 		return
 	}
