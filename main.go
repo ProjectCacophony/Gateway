@@ -10,6 +10,9 @@ import (
 
 	"time"
 
+	"encoding/base64"
+	"encoding/binary"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda"
@@ -17,6 +20,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"github.com/dustin/go-humanize"
 	"github.com/go-redis/redis"
+	"github.com/json-iterator/go"
 	"gitlab.com/project-d-collab/dhelpers"
 )
 
@@ -148,7 +152,40 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 	}
 
 	eventContainer := createEventContainer(receivedAt, session, eventKey, i)
-	routeContainerToLambda(session, eventContainer)
+	go routeContainerToLambda(session, eventContainer)
+	go sendEventToSqsQueue(sqsClient, sqsQueueUrl, eventContainer)
+}
+
+// sends an event to the given SQS Queue
+func sendEventToSqsQueue(sqsClient *sqs.SQS, queueUrl string, container dhelpers.EventContainer) {
+	// pack the event data
+	marshalled, err := jsoniter.Marshal(container)
+	if err != nil {
+		fmt.Println(
+			container.Key+":", "error sending to sqs queue", queueUrl+":",
+			err.Error(),
+		)
+	}
+	base64d := base64.StdEncoding.EncodeToString(marshalled)
+
+	// send to SQS Queue
+	_, err = sqsClient.SendMessage(&sqs.SendMessageInput{
+		DelaySeconds: aws.Int64(0),
+		MessageBody:  aws.String(base64d),
+		QueueUrl:     aws.String(queueUrl),
+	})
+	if err != nil {
+		fmt.Println(
+			container.Key+":", "error sending to sqs queue", queueUrl+":",
+			err.Error(),
+		)
+		return
+	}
+
+	fmt.Println(
+		container.Key+":", "sent to sqs queue", queueUrl,
+		"(size: "+humanize.Bytes(uint64(binary.Size(base64d)))+")",
+	)
 }
 
 func routeContainerToLambda(session *discordgo.Session, container dhelpers.EventContainer) {
@@ -205,10 +242,13 @@ func routeContainerToLambda(session *discordgo.Session, container dhelpers.Event
 		container.Alias = routingEntry.Alias
 		bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, container, routingEntry.Function)
 		if err != nil {
-			fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
+			fmt.Println(
+				container.Key+":", "error sending to lambda", routingEntry.Function+":",
+				err.Error(),
+			)
 		} else {
 			fmt.Println(
-				container.Key+":", "sent to lambda ", routingEntry.Function, "alias", routingEntry.Alias,
+				container.Key+":", "sent to lambda", routingEntry.Function, "alias", routingEntry.Alias,
 				"(size: "+humanize.Bytes(uint64(bytesSent))+")",
 			)
 		}
