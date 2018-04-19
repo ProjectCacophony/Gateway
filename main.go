@@ -154,7 +154,9 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 	go routeContainerToLambda(session, eventContainer)
 
 	if eventContainer.Type != dhelpers.PresenceUpdateEventType {
-		go sendEventToSqsQueue(sqsClient, sqsQueueUrl, eventContainer)
+		if sqsQueueUrl != "" {
+			go sendEventToSqsQueue(sqsClient, sqsQueueUrl, eventContainer)
+		}
 	}
 }
 
