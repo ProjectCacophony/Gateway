@@ -1,0 +1,74 @@
+[[module]] # Greeter Commands
+Active = false # enabled or disabled?
+Events = ["MESSAGE_CREATE"] # which types of events?
+Module = "greeter" # for module permissions, can be empty
+Destination = "sqs/greeter" # to which lambda/function, or sqs/module
+Always = false # trigger even if previous events triggered
+Priority = 0 # priority order
+[[module.requirement]] # requirements
+    Alias = "greeter" # will be sent to the receiver for additional routing
+    Beginning = ["greeter"] # the first argument of the command, can be empty
+    Regex = "" # regex for the full command (without prefix), can be empty
+    DoNotPrependPrefix = false # don't prepend prefix for requirement matching if true
+    CaseSensitive = false # if true, march case sensitive
+[[module]] # Greeter Events
+Active = false
+Events = ["GUILD_MEMBER_ADD", "GUILD_MEMBER_REMOVE"]
+Module = "" # we want the events to be sent even if the module is disabled
+Destination = "sqs/greeter"
+Always = true
+Priority = 100
+
+[[module]] # Ping Commands
+Active = true
+Events = ["MESSAGE_CREATE"]
+Module = "ping"
+Destination = "lambda/dfunction-pong"
+Always = false
+Priority = 0
+AllowDM = true # allow DMs
+    [[module.requirement]]
+    Alias = "ping"
+    Beginning = ["ping", "pong"]
+    Regex = ""
+    DoNotPrependPrefix = false
+    CaseSensitive = false
+    [[module.requirement]]
+    Alias = "ping-myself"
+    Beginning = ["ping-myself"]
+    Regex = ""
+    DoNotPrependPrefix = false
+    CaseSensitive = false
+
+[[module]] # Ping Commands
+Active = true
+Events = ["MESSAGE_CREATE"]
+Module = "ping"
+Destination = "sqs/ping"
+Always = true
+Priority = 0
+AllowDM = true # allow DMs
+    [[module.requirement]]
+    Alias = "ping"
+    Beginning = ["ping", "pong"]
+    Regex = ""
+    DoNotPrependPrefix = false
+    CaseSensitive = false
+
+[[module]] # Custom Commands
+Active = false
+Events = ["MESSAGE_CREATE"]
+Module = "customcommands"
+Destination = "sqs/customcommands"
+Always = false
+Priority = -10
+
+[[module]] # Chatlog
+Active = false
+Events = ["MESSAGE_CREATE"]
+Module = "chatlog"
+Destination = "sqs/chatlog"
+Always = true
+Priority = -100
+AllowBots = true
+AllowMyself = true

@@ -12,6 +12,8 @@ import (
 
 	"encoding/binary"
 
+	"strings"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda"
@@ -151,109 +153,56 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 	}
 
 	eventContainer := createEventContainer(receivedAt, session, eventKey, i)
-	go routeContainerToLambda(session, eventContainer)
 
-	if eventContainer.Type != dhelpers.PresenceUpdateEventType {
-		if sqsQueueUrl != "" {
-			go sendEventToSqsQueue(sqsClient, sqsQueueUrl, eventContainer)
-		}
-	}
-}
+	lambdaDestinations, processorDestinations, aliases := dhelpers.ContainerDestinations(
+		session, routingConfig, eventContainer)
+	eventContainer.Alias = aliases
+	eventContainer.Destinations = append(eventContainer.Destinations, lambdaDestinations...)
+	eventContainer.Destinations = append(eventContainer.Destinations, processorDestinations...)
 
-// sends an event to the given SQS Queue
-func sendEventToSqsQueue(sqsClient *sqs.SQS, queueUrl string, container dhelpers.EventContainer) {
 	// pack the event data
-	marshalled, err := jsoniter.Marshal(container)
+	marshalled, err := jsoniter.Marshal(eventContainer)
 	if err != nil {
 		fmt.Println(
-			container.Key+":", "error sending to sqs queue", queueUrl+":",
-			err.Error(),
-		)
-	}
-
-	// send to SQS Queue
-	_, err = sqsClient.SendMessage(&sqs.SendMessageInput{
-		DelaySeconds: aws.Int64(0),
-		MessageBody:  aws.String(string(marshalled)),
-		QueueUrl:     aws.String(queueUrl),
-	})
-	if err != nil {
-		fmt.Println(
-			container.Key+":", "error sending to sqs queue", queueUrl+":",
-			err.Error(),
+			eventContainer.Key+":", "error marshalling", err.Error(),
 		)
 		return
 	}
 
-	fmt.Println(
-		container.Key+":", "sent to sqs queue", queueUrl,
-		"(size: "+humanize.Bytes(uint64(binary.Size(marshalled)))+")",
-	)
-}
-
-func routeContainerToLambda(session *discordgo.Session, container dhelpers.EventContainer) {
-	var handled int
-
-	for _, routingEntry := range routingConfig {
-		if handled > 0 && !routingEntry.Always {
-			continue
-		}
-
-		if container.Type != routingEntry.Type {
-			continue
-		}
-
-		// check requirements
-		if container.Type == dhelpers.MessageCreateEventType {
-			if !dhelpers.RoutingMatchMessage(
-				routingEntry,
-				container.MessageCreate.Author,
-				session.State.User,
-				container.MessageCreate.Content,
-				container.Args,
-				container.Prefix,
-			) {
-				continue
-			}
-		}
-		if container.Type == dhelpers.MessageUpdateEventType {
-			if !dhelpers.RoutingMatchMessage(
-				routingEntry,
-				container.MessageUpdate.Author,
-				session.State.User,
-				container.MessageUpdate.Content,
-				container.Args,
-				container.Prefix,
-			) {
-				continue
-			}
-		}
-		if container.Type == dhelpers.MessageDeleteEventType {
-			if !dhelpers.RoutingMatchMessage(
-				routingEntry,
-				container.MessageDelete.Author,
-				session.State.User,
-				container.MessageDelete.Content,
-				container.Args,
-				container.Prefix,
-			) {
-				continue
-			}
-		}
-
-		handled++
-		container.Alias = routingEntry.Alias
-		bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, container, routingEntry.Function)
+	if len(processorDestinations) > 0 {
+		// send to SQS Queue
+		_, err = sqsClient.SendMessage(&sqs.SendMessageInput{
+			DelaySeconds: aws.Int64(0),
+			MessageBody:  aws.String(string(marshalled)),
+			QueueUrl:     aws.String(sqsQueueUrl),
+		})
 		if err != nil {
 			fmt.Println(
-				container.Key+":", "error sending to lambda", routingEntry.Function+":",
+				eventContainer.Key+":", "error sending to sqs/"+strings.Join(processorDestinations, ",")+":",
 				err.Error(),
 			)
 		} else {
 			fmt.Println(
-				container.Key+":", "sent to lambda", routingEntry.Function, "alias", routingEntry.Alias,
-				"(size: "+humanize.Bytes(uint64(bytesSent))+")",
+				eventContainer.Key+":", "sent to sqs/"+strings.Join(processorDestinations, ","),
+				"(size: "+humanize.Bytes(uint64(binary.Size(marshalled)))+")",
 			)
+		}
+	}
+
+	if len(lambdaDestinations) > 0 {
+		for _, lambdaDestination := range lambdaDestinations {
+			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, eventContainer, lambdaDestination)
+			if err != nil {
+				fmt.Println(
+					eventContainer.Key+":", "error sending to lambda/"+lambdaDestination+":",
+					err.Error(),
+				)
+			} else {
+				fmt.Println(
+					eventContainer.Key+":", "sent to lambda/"+lambdaDestination,
+					"(size: "+humanize.Bytes(uint64(bytesSent))+")",
+				)
+			}
 		}
 	}
 }
