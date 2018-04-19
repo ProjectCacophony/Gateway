@@ -10,7 +10,6 @@ import (
 
 	"time"
 
-	"encoding/base64"
 	"encoding/binary"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -153,7 +152,10 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 
 	eventContainer := createEventContainer(receivedAt, session, eventKey, i)
 	go routeContainerToLambda(session, eventContainer)
-	go sendEventToSqsQueue(sqsClient, sqsQueueUrl, eventContainer)
+
+	if eventContainer.Type != dhelpers.PresenceUpdateEventType {
+		go sendEventToSqsQueue(sqsClient, sqsQueueUrl, eventContainer)
+	}
 }
 
 // sends an event to the given SQS Queue
@@ -166,12 +168,11 @@ func sendEventToSqsQueue(sqsClient *sqs.SQS, queueUrl string, container dhelpers
 			err.Error(),
 		)
 	}
-	base64d := base64.StdEncoding.EncodeToString(marshalled)
 
 	// send to SQS Queue
 	_, err = sqsClient.SendMessage(&sqs.SendMessageInput{
 		DelaySeconds: aws.Int64(0),
-		MessageBody:  aws.String(base64d),
+		MessageBody:  aws.String(string(marshalled)),
 		QueueUrl:     aws.String(queueUrl),
 	})
 	if err != nil {
@@ -184,7 +185,7 @@ func sendEventToSqsQueue(sqsClient *sqs.SQS, queueUrl string, container dhelpers
 
 	fmt.Println(
 		container.Key+":", "sent to sqs queue", queueUrl,
-		"(size: "+humanize.Bytes(uint64(binary.Size(base64d)))+")",
+		"(size: "+humanize.Bytes(uint64(binary.Size(marshalled)))+")",
 	)
 }
 
