@@ -24,7 +24,7 @@ Active = true
 Events = ["MESSAGE_CREATE"]
 Module = "ping"
 Destination = "lambda/dfunction-pong"
-Always = false
+Always = true
 Priority = 0
 AllowDM = true # allow DMs
     [[module.requirement]]
