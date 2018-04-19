@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda"
+	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/bwmarrin/discordgo"
 	"github.com/dustin/go-humanize"
 	"github.com/go-redis/redis"
@@ -28,16 +29,19 @@ var (
 	redisClient   *redis.Client
 	started       time.Time
 	didLaunch     bool
+	sqsClient     *sqs.SQS
+	sqsQueueUrl   string
 	lambdaClient  *lambda.Lambda
 )
 
 func init() {
-	// Parse command line flags (-t DISCORD_BOT_TOKEN -aws-region AWS_REGION -redis REDIS_ADDRESS)
+	// Parse command line flags (-t DISCORD_BOT_TOKEN -aws-region AWS_REGION -redis REDIS_ADDRESS -sqs SQS_QUEUE_URL)
 	flag.StringVar(&token, "t", "", "Discord Bot token")
 	flag.StringVar(&awsRegion, "aws-region", "", "AWS Region")
 	flag.StringVar(&redisAddress, "redis", "127.0.0.1:6379", "Redis Address")
+	flag.StringVar(&sqsQueueUrl, "sqs", "", "SQS Queue Url")
 	flag.Parse()
-	// overwrite with environment variables if set DISCORD_BOT_TOKEN=… AWS_REGION=… REDIS_ADDRESS=…
+	// overwrite with environment variables if set DISCORD_BOT_TOKEN=… AWS_REGION=… REDIS_ADDRESS=… SQS_QUEUE_URL=…
 	if os.Getenv("DISCORD_BOT_TOKEN") != "" {
 		token = os.Getenv("DISCORD_BOT_TOKEN")
 	}
@@ -46,6 +50,9 @@ func init() {
 	}
 	if os.Getenv("REDIS_ADDRESS") != "" {
 		redisAddress = os.Getenv("REDIS_ADDRESS")
+	}
+	if os.Getenv("SQS_QUEUE_URL") != "" {
+		sqsQueueUrl = os.Getenv("SQS_QUEUE_URL")
 	}
 }
 
@@ -64,6 +71,7 @@ func main() {
 	sess := session.Must(session.NewSession(&aws.Config{
 		Region: aws.String(awsRegion),
 	}))
+	sqsClient = sqs.New(sess)
 	lambdaClient = lambda.New(sess)
 
 	// connect to redis
@@ -126,754 +134,83 @@ func OnReconnect(session *discordgo.Session, event *discordgo.Ready) {
 
 // discord event handler
 func eventHandler(session *discordgo.Session, i interface{}) {
-	processEvent(session, i)
-}
-
-// processes discord events
-func processEvent(session *discordgo.Session, i interface{}) {
 	receivedAt := time.Now()
 
-	// create enhanced Event
-	var handledByUs bool
-	var handled int
+	eventKey := getEventKey(receivedAt, i)
 
-	dDEvent := dhelpers.EventContainer{
-		ReceivedAt:     receivedAt,
-		GatewayStarted: started,
+	if eventKey == "" {
+		return
 	}
+
+	if !isNewEvent(eventKey) {
+		fmt.Println(eventKey+":", "ignored (handled by different gateway)")
+		return
+	}
+
+	eventContainer := createEventContainer(receivedAt, session, eventKey, i)
+	routeContainerToLambda(session, eventContainer)
+}
+
+func routeContainerToLambda(session *discordgo.Session, container dhelpers.EventContainer) {
+	var handled int
 
 	for _, routingEntry := range routingConfig {
 		if handled > 0 && !routingEntry.Always {
 			continue
 		}
 
-		switch t := i.(type) {
-		case *discordgo.GuildCreate:
-			if routingEntry.Type != dhelpers.GuildCreateEventType {
-				continue
-			}
-			// deduplication
-			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Guild)) {
-				return
-			} else {
-				handledByUs = true
-			}
-			dDEvent.Type = routingEntry.Type
-			dDEvent.Alias = routingEntry.Alias
-			dDEvent.GuildCreate = t
-			// additional payload from state
-			if t.Guild != nil {
-				dDEvent.SourceGuild = t.Guild
-			}
-			// add additional state payload
-			dDEvent.BotUser = session.State.User
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
-			handled++
-			if err != nil {
-				fmt.Println("error processing event", routingEntry.Type, "#", t.ID, ":", err.Error())
-			} else {
-				fmt.Println("sent event", routingEntry.Type, "#", t.ID, "to", routingEntry.Function, "alias", routingEntry.Alias, "(size: "+humanize.Bytes(uint64(bytesSent))+")")
-			}
+		if container.Type != routingEntry.Type {
 			continue
-		case *discordgo.GuildUpdate:
-			if routingEntry.Type != dhelpers.GuildUpdateEventType {
+		}
+
+		// check requirements
+		if container.Type == dhelpers.MessageCreateEventType {
+			if !dhelpers.RoutingMatchMessage(
+				routingEntry,
+				container.MessageCreate.Author,
+				session.State.User,
+				container.MessageCreate.Content,
+				container.Args,
+				container.Prefix,
+			) {
 				continue
 			}
-			// deduplication
-			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Guild)) {
-				return
-			} else {
-				handledByUs = true
-			}
-			dDEvent.Type = routingEntry.Type
-			dDEvent.Alias = routingEntry.Alias
-			dDEvent.GuildUpdate = t
-			// additional payload from state
-			dDEvent.BotUser = session.State.User
-			if t.Guild != nil {
-				dDEvent.SourceGuild = t.Guild
-			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
-			handled++
-			if err != nil {
-				fmt.Println("error processing event", routingEntry.Type, "#", t.ID, ":", err.Error())
-			} else {
-				fmt.Println("sent event", routingEntry.Type, "#", t.ID, "to", routingEntry.Function, "alias", routingEntry.Alias, "(size: "+humanize.Bytes(uint64(bytesSent))+")")
-			}
-		case *discordgo.GuildDelete:
-			if routingEntry.Type != dhelpers.GuildDeleteEventType {
+		}
+		if container.Type == dhelpers.MessageUpdateEventType {
+			if !dhelpers.RoutingMatchMessage(
+				routingEntry,
+				container.MessageUpdate.Author,
+				session.State.User,
+				container.MessageUpdate.Content,
+				container.Args,
+				container.Prefix,
+			) {
 				continue
 			}
-			// deduplication
-			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Guild)) {
-				return
-			} else {
-				handledByUs = true
-			}
-			dDEvent.Type = routingEntry.Type
-			dDEvent.Alias = routingEntry.Alias
-			dDEvent.GuildDelete = t
-			// additional payload from state
-			dDEvent.BotUser = session.State.User
-			if t.Guild != nil {
-				dDEvent.SourceGuild = t.Guild
-			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
-			handled++
-			if err != nil {
-				fmt.Println("error processing event", routingEntry.Type, "#", t.ID, ":", err.Error())
-			} else {
-				fmt.Println("sent event", routingEntry.Type, "#", t.ID, "to", routingEntry.Function, "alias", routingEntry.Alias, "(size: "+humanize.Bytes(uint64(bytesSent))+")")
-			}
-		case *discordgo.GuildMemberAdd:
-			if routingEntry.Type != dhelpers.GuildMemberAddEventType {
+		}
+		if container.Type == dhelpers.MessageDeleteEventType {
+			if !dhelpers.RoutingMatchMessage(
+				routingEntry,
+				container.MessageDelete.Author,
+				session.State.User,
+				container.MessageDelete.Content,
+				container.Args,
+				container.Prefix,
+			) {
 				continue
 			}
-			// deduplication
-			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Member)) {
-				return
-			} else {
-				handledByUs = true
-			}
-			dDEvent.Type = routingEntry.Type
-			dDEvent.Alias = routingEntry.Alias
-			dDEvent.GuildMemberAdd = t
-			// additional payload from state
-			dDEvent.BotUser = session.State.User
-			if t.GuildID != "" {
-				sourceGuild, err := session.State.Guild(t.GuildID)
-				if err == nil {
-					dDEvent.SourceGuild = sourceGuild
-				}
-			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
-			handled++
-			if err != nil {
-				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
-			} else {
-				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Function, "alias", routingEntry.Alias, "(size: "+humanize.Bytes(uint64(bytesSent))+")")
-			}
-		case *discordgo.GuildMemberUpdate:
-			if routingEntry.Type != dhelpers.GuildMemberUpdateEventType {
-				continue
-			}
-			// deduplication
-			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Member)) {
-				return
-			} else {
-				handledByUs = true
-			}
-			dDEvent.Type = routingEntry.Type
-			dDEvent.Alias = routingEntry.Alias
-			dDEvent.GuildMemberUpdate = t
-			// additional payload from state
-			dDEvent.BotUser = session.State.User
-			if t.GuildID != "" {
-				sourceGuild, err := session.State.Guild(t.GuildID)
-				if err == nil {
-					dDEvent.SourceGuild = sourceGuild
-				}
-			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
-			handled++
-			if err != nil {
-				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
-			} else {
-				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Function, "alias", routingEntry.Alias, "(size: "+humanize.Bytes(uint64(bytesSent))+")")
-			}
-		case *discordgo.GuildMemberRemove:
-			if routingEntry.Type != dhelpers.GuildMemberRemoveEventType {
-				continue
-			}
-			// deduplication
-			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Member)) {
-				return
-			} else {
-				handledByUs = true
-			}
-			dDEvent.Type = routingEntry.Type
-			dDEvent.Alias = routingEntry.Alias
-			dDEvent.GuildMemberRemove = t
-			// additional payload from state
-			dDEvent.BotUser = session.State.User
-			if t.GuildID != "" {
-				sourceGuild, err := session.State.Guild(t.GuildID)
-				if err == nil {
-					dDEvent.SourceGuild = sourceGuild
-				}
-			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
-			handled++
-			if err != nil {
-				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
-			} else {
-				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Function, "alias", routingEntry.Alias, "(size: "+humanize.Bytes(uint64(bytesSent))+")")
-			}
-		case *discordgo.GuildMembersChunk:
-			if routingEntry.Type != dhelpers.GuildMembersChunkEventType {
-				continue
-			}
-			// deduplication
-			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%s %v", t.GuildID, t.Members)) {
-				return
-			} else {
-				handledByUs = true
-			}
-			dDEvent.Type = routingEntry.Type
-			dDEvent.Alias = routingEntry.Alias
-			dDEvent.GuildMembersChunk = t
-			// additional payload from state
-			dDEvent.BotUser = session.State.User
-			if t.GuildID != "" {
-				sourceGuild, err := session.State.Guild(t.GuildID)
-				if err == nil {
-					dDEvent.SourceGuild = sourceGuild
-				}
-			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
-			handled++
-			if err != nil {
-				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
-			} else {
-				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Function, "alias", routingEntry.Alias, "(size: "+humanize.Bytes(uint64(bytesSent))+")")
-			}
-		case *discordgo.GuildRoleCreate:
-			if routingEntry.Type != dhelpers.GuildRoleCreateEventType {
-				continue
-			}
-			// deduplication
-			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.GuildRole)) {
-				return
-			} else {
-				handledByUs = true
-			}
-			dDEvent.Type = routingEntry.Type
-			dDEvent.Alias = routingEntry.Alias
-			dDEvent.GuildRoleCreate = t
-			// additional payload from state
-			dDEvent.BotUser = session.State.User
-			if t.GuildID != "" {
-				sourceGuild, err := session.State.Guild(t.GuildID)
-				if err == nil {
-					dDEvent.SourceGuild = sourceGuild
-				}
-			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
-			handled++
-			if err != nil {
-				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
-			} else {
-				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Function, "alias", routingEntry.Alias, "(size: "+humanize.Bytes(uint64(bytesSent))+")")
-			}
-		case *discordgo.GuildRoleUpdate:
-			if routingEntry.Type != dhelpers.GuildRoleUpdateEventType {
-				continue
-			}
-			// deduplication
-			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.GuildRole)) {
-				return
-			} else {
-				handledByUs = true
-			}
-			dDEvent.Type = routingEntry.Type
-			dDEvent.Alias = routingEntry.Alias
-			dDEvent.GuildRoleUpdate = t
-			// additional payload from state
-			dDEvent.BotUser = session.State.User
-			if t.GuildID != "" {
-				sourceGuild, err := session.State.Guild(t.GuildID)
-				if err == nil {
-					dDEvent.SourceGuild = sourceGuild
-				}
-			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
-			handled++
-			if err != nil {
-				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
-			} else {
-				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Function, "alias", routingEntry.Alias, "(size: "+humanize.Bytes(uint64(bytesSent))+")")
-			}
-		case *discordgo.GuildRoleDelete:
-			if routingEntry.Type != dhelpers.GuildRoleDeleteEventType {
-				continue
-			}
-			// deduplication
-			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%s %s", t.RoleID, t.GuildID)) {
-				return
-			} else {
-				handledByUs = true
-			}
-			dDEvent.Type = routingEntry.Type
-			dDEvent.Alias = routingEntry.Alias
-			dDEvent.GuildRoleDelete = t
-			// additional payload from state
-			dDEvent.BotUser = session.State.User
-			if t.GuildID != "" {
-				sourceGuild, err := session.State.Guild(t.GuildID)
-				if err == nil {
-					dDEvent.SourceGuild = sourceGuild
-				}
-			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
-			handled++
-			if err != nil {
-				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
-			} else {
-				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Function, "alias", routingEntry.Alias, "(size: "+humanize.Bytes(uint64(bytesSent))+")")
-			}
-		case *discordgo.GuildEmojisUpdate:
-			if routingEntry.Type != dhelpers.GuildEmojisUpdateEventType {
-				continue
-			}
-			// deduplication
-			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%s %v", t.GuildID, t.Emojis)) {
-				return
-			} else {
-				handledByUs = true
-			}
-			dDEvent.Type = routingEntry.Type
-			dDEvent.Alias = routingEntry.Alias
-			dDEvent.GuildEmojisUpdate = t
-			// additional payload from state
-			dDEvent.BotUser = session.State.User
-			if t.GuildID != "" {
-				sourceGuild, err := session.State.Guild(t.GuildID)
-				if err == nil {
-					dDEvent.SourceGuild = sourceGuild
-				}
-			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
-			handled++
-			if err != nil {
-				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
-			} else {
-				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Function, "alias", routingEntry.Alias, "(size: "+humanize.Bytes(uint64(bytesSent))+")")
-			}
-		case *discordgo.ChannelCreate:
-			if routingEntry.Type != dhelpers.ChannelCreateEventType {
-				continue
-			}
-			// deduplication
-			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Channel)) {
-				return
-			} else {
-				handledByUs = true
-			}
-			dDEvent.Type = routingEntry.Type
-			dDEvent.Alias = routingEntry.Alias
-			dDEvent.ChannelCreate = t
-			// additional payload from state
-			dDEvent.BotUser = session.State.User
-			if t.GuildID != "" {
-				sourceGuild, err := session.State.Guild(t.GuildID)
-				if err == nil {
-					dDEvent.SourceGuild = sourceGuild
-				}
-			}
-			if t.Channel != nil {
-				dDEvent.SourceChannel = t.Channel
-			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
-			handled++
-			if err != nil {
-				fmt.Println("error processing event", routingEntry.Type, "#", t.ID, ":", err.Error())
-			} else {
-				fmt.Println("sent event", routingEntry.Type, "#", t.ID, "to", routingEntry.Function, "alias", routingEntry.Alias, "(size: "+humanize.Bytes(uint64(bytesSent))+")")
-			}
-		case *discordgo.ChannelUpdate:
-			if routingEntry.Type != dhelpers.ChannelUpdateEventType {
-				continue
-			}
-			// deduplication
-			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Channel)) {
-				return
-			} else {
-				handledByUs = true
-			}
-			dDEvent.Type = routingEntry.Type
-			dDEvent.Alias = routingEntry.Alias
-			dDEvent.ChannelUpdate = t
-			// additional payload from state
-			dDEvent.BotUser = session.State.User
-			if t.GuildID != "" {
-				sourceGuild, err := session.State.Guild(t.GuildID)
-				if err == nil {
-					dDEvent.SourceGuild = sourceGuild
-				}
-			}
-			if t.Channel != nil {
-				dDEvent.SourceChannel = t.Channel
-			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
-			handled++
-			if err != nil {
-				fmt.Println("error processing event", routingEntry.Type, "#", t.ID, ":", err.Error())
-			} else {
-				fmt.Println("sent event", routingEntry.Type, "#", t.ID, "to", routingEntry.Function, "alias", routingEntry.Alias, "(size: "+humanize.Bytes(uint64(bytesSent))+")")
-			}
-		case *discordgo.ChannelDelete:
-			if routingEntry.Type != dhelpers.ChannelDeleteEventType {
-				continue
-			}
-			// deduplication
-			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Channel)) {
-				return
-			} else {
-				handledByUs = true
-			}
-			dDEvent.Type = routingEntry.Type
-			dDEvent.Alias = routingEntry.Alias
-			dDEvent.ChannelDelete = t
-			// additional payload from state
-			dDEvent.BotUser = session.State.User
-			if t.GuildID != "" {
-				sourceGuild, err := session.State.Guild(t.GuildID)
-				if err == nil {
-					dDEvent.SourceGuild = sourceGuild
-				}
-			}
-			if t.Channel != nil {
-				dDEvent.SourceChannel = t.Channel
-			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
-			handled++
-			if err != nil {
-				fmt.Println("error processing event", routingEntry.Type, "#", t.ID, ":", err.Error())
-			} else {
-				fmt.Println("sent event", routingEntry.Type, "#", t.ID, "to", routingEntry.Function, "alias", routingEntry.Alias, "(size: "+humanize.Bytes(uint64(bytesSent))+")")
-			}
-		case *discordgo.MessageCreate:
-			if routingEntry.Type != dhelpers.MessageCreateEventType {
-				continue
-			}
-			// deduplication
-			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Message)) {
-				return
-			} else {
-				handledByUs = true
-			}
-			// args and prefix
-			args, prefix := dhelpers.GetMessageArguments(t.Content, PREFIXES)
-			// check requirements
-			if !dhelpers.RoutingMatchMessage(routingEntry, t.Author, session.State.User, t.Content, args, prefix) {
-				continue
-			}
-			dDEvent.Type = routingEntry.Type
-			dDEvent.Args = args
-			dDEvent.Prefix = prefix
-			dDEvent.Alias = routingEntry.Alias
-			dDEvent.MessageCreate = t
-			// additional payload from state
-			dDEvent.BotUser = session.State.User
-			if t.ChannelID != "" {
-				sourceChannel, err := session.State.Channel(t.ChannelID)
-				if err == nil {
-					dDEvent.SourceChannel = sourceChannel
-					sourceGuild, err := session.State.Guild(sourceChannel.GuildID)
-					if err == nil {
-						dDEvent.SourceGuild = sourceGuild
-					}
-				}
-			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
-			handled++
-			if err != nil {
-				fmt.Println("error processing event", routingEntry.Type, "#", t.ID, ":", err.Error())
-			} else {
-				fmt.Println("sent event", routingEntry.Type, "#", t.ID, "to", routingEntry.Function, "alias", routingEntry.Alias, "(size: "+humanize.Bytes(uint64(bytesSent))+")")
-			}
-		case *discordgo.MessageUpdate:
-			if routingEntry.Type != dhelpers.MessageUpdateEventType {
-				continue
-			}
-			// deduplication
-			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Message)) {
-				return
-			} else {
-				handledByUs = true
-			}
-			// args and prefix
-			args, prefix := dhelpers.GetMessageArguments(t.Content, PREFIXES)
-			// check requirements
-			if !dhelpers.RoutingMatchMessage(routingEntry, t.Author, session.State.User, t.Content, args, prefix) {
-				continue
-			}
-			dDEvent.Type = routingEntry.Type
-			dDEvent.Args = args
-			dDEvent.Prefix = prefix
-			dDEvent.Alias = routingEntry.Alias
-			dDEvent.MessageUpdate = t
-			// additional payload from state
-			dDEvent.BotUser = session.State.User
-			if t.ChannelID != "" {
-				sourceChannel, err := session.State.Channel(t.ChannelID)
-				if err == nil {
-					dDEvent.SourceChannel = sourceChannel
-					sourceGuild, err := session.State.Guild(sourceChannel.GuildID)
-					if err == nil {
-						dDEvent.SourceGuild = sourceGuild
-					}
-				}
-			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
-			handled++
-			if err != nil {
-				fmt.Println("error processing event", routingEntry.Type, "#", t.ID, ":", err.Error())
-			} else {
-				fmt.Println("sent event", routingEntry.Type, "#", t.ID, "to", routingEntry.Function, "alias", routingEntry.Alias, "(size: "+humanize.Bytes(uint64(bytesSent))+")")
-			}
-		case *discordgo.MessageDelete:
-			if routingEntry.Type != dhelpers.MessageDeleteEventType {
-				continue
-			}
-			// deduplication
-			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.Message)) {
-				return
-			} else {
-				handledByUs = true
-			}
-			// args and prefix
-			args, prefix := dhelpers.GetMessageArguments(t.Content, PREFIXES)
-			// check requirements
-			if !dhelpers.RoutingMatchMessage(routingEntry, t.Author, session.State.User, t.Content, args, prefix) {
-				continue
-			}
-			dDEvent.Type = routingEntry.Type
-			dDEvent.Args = args
-			dDEvent.Prefix = prefix
-			dDEvent.Alias = routingEntry.Alias
-			dDEvent.MessageDelete = t
-			// additional payload from state
-			dDEvent.BotUser = session.State.User
-			if t.ChannelID != "" {
-				sourceChannel, err := session.State.Channel(t.ChannelID)
-				if err == nil {
-					dDEvent.SourceChannel = sourceChannel
-					sourceGuild, err := session.State.Guild(sourceChannel.GuildID)
-					if err == nil {
-						dDEvent.SourceGuild = sourceGuild
-					}
-				}
-			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
-			handled++
-			if err != nil {
-				fmt.Println("error processing event", routingEntry.Type, "#", t.ID, ":", err.Error())
-			} else {
-				fmt.Println("sent event", routingEntry.Type, "#", t.ID, "to", routingEntry.Function, "alias", routingEntry.Alias, "(size: "+humanize.Bytes(uint64(bytesSent))+")")
-			}
-		case *discordgo.PresenceUpdate:
-			if routingEntry.Type != dhelpers.PresenceUpdateEventType {
-				continue
-			}
-			// deduplication
-			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v %s %v", t.Presence, t.GuildID, t.Roles)) {
-				return
-			} else {
-				handledByUs = true
-			}
-			dDEvent.Type = routingEntry.Type
-			dDEvent.Alias = routingEntry.Alias
-			dDEvent.PresenceUpdate = t
-			// additional payload from state
-			dDEvent.BotUser = session.State.User
-			if t.GuildID != "" {
-				sourceGuild, err := session.State.Guild(t.GuildID)
-				if err == nil {
-					dDEvent.SourceGuild = sourceGuild
-				}
-			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
-			handled++
-			if err != nil {
-				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
-			} else {
-				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Function, "alias", routingEntry.Alias, "(size: "+humanize.Bytes(uint64(bytesSent))+")")
-			}
-		case *discordgo.ChannelPinsUpdate:
-			if routingEntry.Type != dhelpers.ChannelPinsUpdateEventType {
-				continue
-			}
-			// deduplication
-			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%s %s", t.LastPinTimestamp, t.ChannelID)) {
-				return
-			} else {
-				handledByUs = true
-			}
-			dDEvent.Type = routingEntry.Type
-			dDEvent.Alias = routingEntry.Alias
-			dDEvent.ChannelPinsUpdate = t
-			// additional payload from state
-			dDEvent.BotUser = session.State.User
-			if t.ChannelID != "" {
-				sourceChannel, err := session.State.Channel(t.ChannelID)
-				if err == nil {
-					dDEvent.SourceChannel = sourceChannel
-					sourceGuild, err := session.State.Guild(sourceChannel.GuildID)
-					if err == nil {
-						dDEvent.SourceGuild = sourceGuild
-					}
-				}
-			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
-			handled++
-			if err != nil {
-				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
-			} else {
-				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Function, "alias", routingEntry.Alias, "(size: "+humanize.Bytes(uint64(bytesSent))+")")
-			}
-		case *discordgo.GuildBanAdd:
-			if routingEntry.Type != dhelpers.GuildBanAddEventType {
-				continue
-			}
-			// deduplication
-			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v %s", t.User, t.GuildID)) {
-				return
-			} else {
-				handledByUs = true
-			}
-			dDEvent.Type = routingEntry.Type
-			dDEvent.Alias = routingEntry.Alias
-			dDEvent.GuildBanAdd = t
-			// additional payload from state
-			dDEvent.BotUser = session.State.User
-			if t.GuildID != "" {
-				sourceGuild, err := session.State.Guild(t.GuildID)
-				if err == nil {
-					dDEvent.SourceGuild = sourceGuild
-				}
-			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
-			handled++
-			if err != nil {
-				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
-			} else {
-				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Function, "alias", routingEntry.Alias, "(size: "+humanize.Bytes(uint64(bytesSent))+")")
-			}
-		case *discordgo.GuildBanRemove:
-			if routingEntry.Type != dhelpers.GuildBanRemoveEventType {
-				continue
-			}
-			// deduplication
-			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v %s", t.User, t.GuildID)) {
-				return
-			} else {
-				handledByUs = true
-			}
-			dDEvent.Type = routingEntry.Type
-			dDEvent.Alias = routingEntry.Alias
-			dDEvent.GuildBanRemove = t
-			// additional payload from state
-			dDEvent.BotUser = session.State.User
-			if t.GuildID != "" {
-				sourceGuild, err := session.State.Guild(t.GuildID)
-				if err == nil {
-					dDEvent.SourceGuild = sourceGuild
-				}
-			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
-			handled++
-			if err != nil {
-				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
-			} else {
-				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Function, "alias", routingEntry.Alias, "(size: "+humanize.Bytes(uint64(bytesSent))+")")
-			}
-		case *discordgo.MessageReactionAdd:
-			if routingEntry.Type != dhelpers.MessageReactionAddEventType {
-				continue
-			}
-			// deduplication
-			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.MessageReaction)) {
-				return
-			} else {
-				handledByUs = true
-			}
-			dDEvent.Type = routingEntry.Type
-			dDEvent.Alias = routingEntry.Alias
-			dDEvent.MessageReactionAdd = t
-			// additional payload from state
-			dDEvent.BotUser = session.State.User
-			if t.ChannelID != "" {
-				sourceChannel, err := session.State.Channel(t.ChannelID)
-				if err == nil {
-					dDEvent.SourceChannel = sourceChannel
-					sourceGuild, err := session.State.Guild(sourceChannel.GuildID)
-					if err == nil {
-						dDEvent.SourceGuild = sourceGuild
-					}
-				}
-			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
-			handled++
-			if err != nil {
-				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
-			} else {
-				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Function, "alias", routingEntry.Alias, "(size: "+humanize.Bytes(uint64(bytesSent))+")")
-			}
-		case *discordgo.MessageReactionRemove:
-			if routingEntry.Type != dhelpers.MessageReactionRemoveEventType {
-				continue
-			}
-			// deduplication
-			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.MessageReaction)) {
-				return
-			} else {
-				handledByUs = true
-			}
-			dDEvent.Type = routingEntry.Type
-			dDEvent.Alias = routingEntry.Alias
-			dDEvent.MessageReactionRemove = t
-			// additional payload from state
-			dDEvent.BotUser = session.State.User
-			if t.ChannelID != "" {
-				sourceChannel, err := session.State.Channel(t.ChannelID)
-				if err == nil {
-					dDEvent.SourceChannel = sourceChannel
-					sourceGuild, err := session.State.Guild(sourceChannel.GuildID)
-					if err == nil {
-						dDEvent.SourceGuild = sourceGuild
-					}
-				}
-			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
-			handled++
-			if err != nil {
-				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
-			} else {
-				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Function, "alias", routingEntry.Alias, "(size: "+humanize.Bytes(uint64(bytesSent))+")")
-			}
-		case *discordgo.MessageReactionRemoveAll:
-			if routingEntry.Type != dhelpers.MessageReactionRemoveAllEventType {
-				continue
-			}
-			// deduplication
-			if !handledByUs && !IsNewEvent(routingEntry.Type, fmt.Sprintf("%v", t.MessageReaction)) {
-				return
-			} else {
-				handledByUs = true
-			}
-			dDEvent.Type = routingEntry.Type
-			dDEvent.Alias = routingEntry.Alias
-			dDEvent.MessageReactionRemoveAll = t
-			// additional payload from state
-			dDEvent.BotUser = session.State.User
-			if t.ChannelID != "" {
-				sourceChannel, err := session.State.Channel(t.ChannelID)
-				if err == nil {
-					dDEvent.SourceChannel = sourceChannel
-					sourceGuild, err := session.State.Guild(sourceChannel.GuildID)
-					if err == nil {
-						dDEvent.SourceGuild = sourceGuild
-					}
-				}
-			}
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, dDEvent, routingEntry.Function)
-			handled++
-			if err != nil {
-				fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
-			} else {
-				fmt.Println("sent event", routingEntry.Type, "to", routingEntry.Function, "alias", routingEntry.Alias, "(size: "+humanize.Bytes(uint64(bytesSent))+")")
-			}
+		}
+
+		handled++
+		container.Alias = routingEntry.Alias
+		bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, container, routingEntry.Function)
+		if err != nil {
+			fmt.Println("error processing event", routingEntry.Type, ":", err.Error())
+		} else {
+			fmt.Println(
+				container.Key+":", "sent to lambda ", routingEntry.Function, "alias", routingEntry.Alias,
+				"(size: "+humanize.Bytes(uint64(bytesSent))+")",
+			)
 		}
 	}
 }
