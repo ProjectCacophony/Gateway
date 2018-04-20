@@ -23,6 +23,8 @@ import (
 	"github.com/go-redis/redis"
 	"github.com/json-iterator/go"
 	"gitlab.com/project-d-collab/dhelpers"
+	dhelpersCache "gitlab.com/project-d-collab/dhelpers/cache"
+	dhelpersState "gitlab.com/project-d-collab/dhelpers/state"
 )
 
 var (
@@ -85,6 +87,7 @@ func main() {
 		Password: "",
 		DB:       0,
 	})
+	dhelpersCache.SetRedisClient(redisClient)
 
 	// create a new Discordgo Bot Client
 	fmt.Println("Connecting to Discord, token Length:", len(token))
@@ -93,7 +96,13 @@ func main() {
 		fmt.Println("error creating Discord session,", err.Error())
 		return
 	}
-
+	// essentially only keep discordgo guild state
+	dg.State.TrackChannels = false
+	dg.State.TrackEmojis = false
+	dg.State.TrackMembers = false
+	dg.State.TrackPresences = false
+	dg.State.TrackRoles = false
+	dg.State.TrackVoice = false
 	// add gateway ready handler
 	dg.AddHandler(BotOnReady)
 	// add the discord event handler
@@ -128,13 +137,26 @@ func BotOnReady(session *discordgo.Session, event *discordgo.Ready) {
 func OnFirstReady(session *discordgo.Session, event *discordgo.Ready) {
 	PREFIXES = append(PREFIXES, "<@"+session.State.User.ID+">")  // add bot mention to prefixes
 	PREFIXES = append(PREFIXES, "<@!"+session.State.User.ID+">") // add bot alias mention to prefixes
-	// TODO: request guild member chunks for large guilds, and for new guilds
-	// TODO: persist and restore state?
+
+	for _, guild := range session.State.Guilds {
+		if guild.Large {
+			err := session.RequestGuildMembers(guild.ID, "", 0)
+			if err != nil {
+				fmt.Println(err.Error())
+			}
+		}
+	}
 }
 
 func OnReconnect(session *discordgo.Session, event *discordgo.Ready) {
-	// TODO: request guild member chunks for large guilds, and for new guilds
-	// TODO: persist and restore state?
+	for _, guild := range session.State.Guilds {
+		if guild.Large {
+			err := session.RequestGuildMembers(guild.ID, "", 0)
+			if err != nil {
+				fmt.Println(err.Error())
+			}
+		}
+	}
 }
 
 // discord event handler
@@ -152,7 +174,17 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 		return
 	}
 
+	// update shared state
+	err := dhelpersState.SharedStateEventHandler(session, i) // TODO: deduplication?
+	if err != nil {
+		fmt.Println("state error:", err.Error())
+	}
+
 	eventContainer := createEventContainer(receivedAt, session, eventKey, i)
+
+	if eventContainer.Type == "" {
+		return
+	}
 
 	lambdaDestinations, processorDestinations, aliases := dhelpers.ContainerDestinations(
 		session, routingConfig, eventContainer)
