@@ -75,10 +75,6 @@ func createEventContainer(receivedAt time.Time, session *discordgo.Session, even
 		dDEvent.MessageUpdate = t
 	case *discordgo.MessageDelete:
 		dDEvent.Type = dhelpers.MessageDeleteEventType
-		// args and prefix
-		args, prefix := dhelpers.GetMessageArguments(t.Content, PREFIXES)
-		dDEvent.Args = args
-		dDEvent.Prefix = prefix
 		dDEvent.MessageDelete = t
 	case *discordgo.ChannelPinsUpdate:
 		dDEvent.ChannelPinsUpdate = t
