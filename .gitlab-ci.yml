@@ -11,12 +11,13 @@ before_script:
   - cd ${CI_PROJECT_NAME}
   # install dependencies
   - go get -v .
+  - go get -v go get golang.org/x/tools/cmd/goimports
   - go get -v gopkg.in/alecthomas/gometalinter.v2
   - gometalinter.v2 --install
 
 testing:
   stage: test
   script:
-    - diff <(gofmt -d .) <(echo -n)
+    - diff <(goimports -d .) <(echo -n)
     - go test -v -race ./...
     - gometalinter.v2 ./... --deadline 5m
