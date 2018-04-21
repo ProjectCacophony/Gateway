@@ -1,18 +1,13 @@
 package main
 
 import (
-	"fmt"
+	"encoding/binary"
+	"flag"
 	"os"
 	"os/signal"
-	"syscall"
-
-	"flag"
-
-	"time"
-
-	"encoding/binary"
-
 	"strings"
+	"syscall"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -22,8 +17,10 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/go-redis/redis"
 	"github.com/json-iterator/go"
+	"github.com/sirupsen/logrus"
 	"gitlab.com/project-d-collab/dhelpers"
 	dhelpersCache "gitlab.com/project-d-collab/dhelpers/cache"
+	"gitlab.com/project-d-collab/dhelpers/components"
 	dhelpersState "gitlab.com/project-d-collab/dhelpers/state"
 )
 
@@ -40,6 +37,7 @@ var (
 	sqsClient     *sqs.SQS
 	sqsQueueURL   string
 	lambdaClient  *lambda.Lambda
+	logger        *logrus.Entry
 )
 
 func init() {
@@ -67,13 +65,17 @@ func init() {
 func main() {
 	started = time.Now()
 	var err error
+
+	components.InitLogger("Gateway")
+	logger = dhelpersCache.GetLogger()
+
 	// get config
 	routingConfig, err = dhelpers.GetRoutings()
 	if err != nil {
-		fmt.Println("error getting routing config", err.Error())
+		logger.Errorln("error getting routing config", err.Error())
 		return
 	}
-	fmt.Println("Found", len(routingConfig), "routing rules")
+	logger.Infoln("Found", len(routingConfig), "routing rules")
 
 	// connect to aws
 	sess := session.Must(session.NewSession(&aws.Config{
@@ -91,10 +93,10 @@ func main() {
 	dhelpersCache.SetRedisClient(redisClient)
 
 	// create a new Discordgo Bot Client
-	fmt.Println("Connecting to Discord, token Length:", len(token))
+	logger.Infoln("Connecting to Discord, token Length:", len(token))
 	dg, err := discordgo.New("Bot " + token)
 	if err != nil {
-		fmt.Println("error creating Discord session,", err.Error())
+		logger.Errorln("error creating Discord session,", err.Error())
 		return
 	}
 	// essentially only keep discordgo guild state
@@ -112,12 +114,12 @@ func main() {
 	// open Discord Websocket connection
 	err = dg.Open()
 	if err != nil {
-		fmt.Println("error opening connection,", err.Error())
+		logger.Errorln("error opening connection,", err.Error())
 		return
 	}
 
 	// wait for CTRL+C to stop the Bot
-	fmt.Println("Bot is now running. Press CTRL-C to exit.")
+	logger.Infoln("Bot is now running. Press CTRL-C to exit.")
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-sc
@@ -125,7 +127,7 @@ func main() {
 	// disconnect from Discord Websocket
 	err = dg.Close()
 	if err != nil {
-		fmt.Println("error closing connection,", err.Error())
+		logger.Errorln("error closing connection,", err.Error())
 		return
 	}
 }
@@ -147,7 +149,7 @@ func onFirstReady(session *discordgo.Session, event *discordgo.Ready) {
 		if guild.Large {
 			err := session.RequestGuildMembers(guild.ID, "", 0)
 			if err != nil {
-				fmt.Println(err.Error())
+				logger.Errorln(err.Error())
 			}
 		}
 	}
@@ -158,7 +160,7 @@ func onReconnect(session *discordgo.Session, event *discordgo.Ready) {
 		if guild.Large {
 			err := session.RequestGuildMembers(guild.ID, "", 0)
 			if err != nil {
-				fmt.Println(err.Error())
+				logger.Errorln(err.Error())
 			}
 		}
 	}
@@ -175,14 +177,14 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 	}
 
 	if !dhelpers.IsNewEvent(redisClient, "gateway", eventKey) {
-		fmt.Println(eventKey+":", "ignored (handled by different gateway)")
+		logger.Infoln(eventKey+":", "ignored (handled by different gateway)")
 		return
 	}
 
 	// update shared state
 	err := dhelpersState.SharedStateEventHandler(session, i) // TODO: deduplication?
 	if err != nil {
-		fmt.Println("state error:", err.Error())
+		logger.Errorln("state error:", err.Error())
 	}
 
 	eventContainer := createEventContainer(receivedAt, session, eventKey, i)
@@ -198,7 +200,7 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 	// pack the event data
 	marshalled, err := jsoniter.Marshal(eventContainer)
 	if err != nil {
-		fmt.Println(
+		logger.Errorln(
 			eventContainer.Key+":", "error marshalling", err.Error(),
 		)
 		return
@@ -212,12 +214,12 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 		case dhelpers.LambdaDestinationType:
 			bytesSent, err = dhelpers.StartLambdaAsync(lambdaClient, eventContainer, destination.Name)
 			if err != nil {
-				fmt.Println(
+				logger.Errorln(
 					eventContainer.Key+":", "error sending to lambda/"+destination.Name+":",
 					err.Error(),
 				)
 			} else {
-				fmt.Println(
+				logger.Infoln(
 					eventContainer.Key+":", "sent to lambda/"+destination.Name,
 					"(size: "+humanize.Bytes(uint64(bytesSent))+")",
 				)
@@ -241,12 +243,12 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 			QueueUrl:     aws.String(sqsQueueURL),
 		})
 		if err != nil {
-			fmt.Println(
+			logger.Errorln(
 				eventContainer.Key+":", "error sending to sqs/"+destinationsText+":",
 				err.Error(),
 			)
 		} else {
-			fmt.Println(
+			logger.Infoln(
 				eventContainer.Key+":", "sent to sqs/"+destinationsText,
 				"(size: "+humanize.Bytes(uint64(binary.Size(marshalled)))+")",
 			)
