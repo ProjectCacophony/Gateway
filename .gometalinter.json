@@ -16,8 +16,6 @@
     "varcheck",
     "vet",
     "vetshadow",
-    "gofmt",
-    "goimports",
     "misspell",
     "unparam"
   ]
