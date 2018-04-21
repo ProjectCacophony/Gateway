@@ -55,6 +55,21 @@ AllowDM = true # allow DMs
     DoNotPrependPrefix = false
     CaseSensitive = false
 
+[[module]] # Color Commands
+Active = true
+Events = ["MESSAGE_CREATE"]
+Module = "color"
+Destination = "sqs/color"
+Always = false
+Priority = 0
+AllowDM = false # allow DMs
+    [[module.requirement]]
+    Alias = "color"
+    Beginning = ["color", "colour"]
+    Regex = ""
+    DoNotPrependPrefix = false
+    CaseSensitive = false
+
 [[module]] # Custom Commands
 Active = false
 Events = ["MESSAGE_CREATE"]
