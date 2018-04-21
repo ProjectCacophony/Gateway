@@ -206,10 +206,11 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 
 	processorDestinations := make([]dhelpers.DestinationData, 0)
 
+	var bytesSent int
 	for _, destination := range destinations {
 		switch destination.Type {
 		case dhelpers.LambdaDestinationType:
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, eventContainer, destination.Name)
+			bytesSent, err = dhelpers.StartLambdaAsync(lambdaClient, eventContainer, destination.Name)
 			if err != nil {
 				fmt.Println(
 					eventContainer.Key+":", "error sending to lambda/"+destination.Name+":",
