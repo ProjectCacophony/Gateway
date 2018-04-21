@@ -28,7 +28,8 @@ import (
 )
 
 var (
-	PREFIXES      = []string{"/"} // TODO
+	// PREFIXES are all allowed prefixes, TODO: replace with dynamic prefix
+	PREFIXES      = []string{"/"}
 	token         string
 	awsRegion     string
 	redisAddress  string
@@ -167,7 +168,7 @@ func onReconnect(session *discordgo.Session, event *discordgo.Ready) {
 func eventHandler(session *discordgo.Session, i interface{}) {
 	receivedAt := time.Now()
 
-	eventKey := dhelpers.GetEventKey(receivedAt, i)
+	eventKey := dhelpers.GetEventKey(i)
 
 	if eventKey == "" {
 		return

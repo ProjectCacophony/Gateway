@@ -1,6 +1,6 @@
 package main
 
-// Stores the Prefix Config for a Guild
+// PrefixEntry stores the Prefix Config for a Guild
 type PrefixEntry struct {
 	GuildID string
 	Prefix  []string
