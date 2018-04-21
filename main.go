@@ -37,7 +37,7 @@ var (
 	started       time.Time
 	didLaunch     bool
 	sqsClient     *sqs.SQS
-	sqsQueueUrl   string
+	sqsQueueURL   string
 	lambdaClient  *lambda.Lambda
 )
 
@@ -46,7 +46,7 @@ func init() {
 	flag.StringVar(&token, "t", "", "Discord Bot token")
 	flag.StringVar(&awsRegion, "aws-region", "", "AWS Region")
 	flag.StringVar(&redisAddress, "redis", "127.0.0.1:6379", "Redis Address")
-	flag.StringVar(&sqsQueueUrl, "sqs", "", "SQS Queue Url")
+	flag.StringVar(&sqsQueueURL, "sqs", "", "SQS Queue Url")
 	flag.Parse()
 	// overwrite with environment variables if set DISCORD_BOT_TOKEN=… AWS_REGION=… REDIS_ADDRESS=… SQS_QUEUE_URL=…
 	if os.Getenv("DISCORD_BOT_TOKEN") != "" {
@@ -59,7 +59,7 @@ func init() {
 		redisAddress = os.Getenv("REDIS_ADDRESS")
 	}
 	if os.Getenv("SQS_QUEUE_URL") != "" {
-		sqsQueueUrl = os.Getenv("SQS_QUEUE_URL")
+		sqsQueueURL = os.Getenv("SQS_QUEUE_URL")
 	}
 }
 
@@ -104,7 +104,7 @@ func main() {
 	dg.State.TrackRoles = false
 	dg.State.TrackVoice = false
 	// add gateway ready handler
-	dg.AddHandler(BotOnReady)
+	dg.AddHandler(onReady)
 	// add the discord event handler
 	dg.AddHandler(eventHandler)
 
@@ -118,23 +118,27 @@ func main() {
 	// wait for CTRL+C to stop the Bot
 	fmt.Println("Bot is now running. Press CTRL-C to exit.")
 	sc := make(chan os.Signal, 1)
-	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
+	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-sc
 
 	// disconnect from Discord Websocket
-	dg.Close()
-}
-
-func BotOnReady(session *discordgo.Session, event *discordgo.Ready) {
-	if !didLaunch {
-		OnFirstReady(session, event)
-		didLaunch = true
-	} else {
-		OnReconnect(session, event)
+	err = dg.Close()
+	if err != nil {
+		fmt.Println("error closing connection,", err.Error())
+		return
 	}
 }
 
-func OnFirstReady(session *discordgo.Session, event *discordgo.Ready) {
+func onReady(session *discordgo.Session, event *discordgo.Ready) {
+	if !didLaunch {
+		onFirstReady(session, event)
+		didLaunch = true
+	} else {
+		onReconnect(session, event)
+	}
+}
+
+func onFirstReady(session *discordgo.Session, event *discordgo.Ready) {
 	PREFIXES = append(PREFIXES, "<@"+session.State.User.ID+">")  // add bot mention to prefixes
 	PREFIXES = append(PREFIXES, "<@!"+session.State.User.ID+">") // add bot alias mention to prefixes
 
@@ -148,7 +152,7 @@ func OnFirstReady(session *discordgo.Session, event *discordgo.Ready) {
 	}
 }
 
-func OnReconnect(session *discordgo.Session, event *discordgo.Ready) {
+func onReconnect(session *discordgo.Session, event *discordgo.Ready) {
 	for _, guild := range session.State.Guilds {
 		if guild.Large {
 			err := session.RequestGuildMembers(guild.ID, "", 0)
@@ -206,7 +210,7 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 		_, err = sqsClient.SendMessage(&sqs.SendMessageInput{
 			DelaySeconds: aws.Int64(0),
 			MessageBody:  aws.String(string(marshalled)),
-			QueueUrl:     aws.String(sqsQueueUrl),
+			QueueUrl:     aws.String(sqsQueueURL),
 		})
 		if err != nil {
 			fmt.Println(

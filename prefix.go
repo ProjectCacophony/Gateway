@@ -6,6 +6,7 @@ type PrefixEntry struct {
 	Prefix  []string
 }
 
+// GetPrefixes returns all customized prefix entries for guilds
 func GetPrefixes() (prefixes []PrefixEntry, err error) {
 	return []PrefixEntry{ // example prefix config
 		{
