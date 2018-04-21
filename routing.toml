@@ -5,6 +5,7 @@ Module = "greeter" # for module permissions, can be empty
 Destination = "sqs/greeter" # to which lambda/function, or sqs/module
 Always = false # trigger even if previous events triggered
 Priority = 0 # priority order
+ErrorHandlers = ["sentry", "discord"] # send errors to sentry and show error on discord
 [[module.requirement]] # requirements
     Alias = "greeter" # will be sent to the receiver for additional routing
     Beginning = ["greeter"] # the first argument of the command, can be empty
@@ -18,6 +19,7 @@ Module = "" # we want the events to be sent even if the module is disabled
 Destination = "sqs/greeter"
 Always = true
 Priority = 100
+ErrorHandlers = ["sentry"]
 
 [[module]] # Ping Commands
 Active = true
@@ -27,6 +29,7 @@ Destination = "lambda/dfunction-pong"
 Always = true
 Priority = 0
 AllowDM = true # allow DMs
+ErrorHandlers = ["sentry", "discord"]
     [[module.requirement]]
     Alias = "ping"
     Beginning = ["ping", "pong"]
@@ -48,6 +51,7 @@ Destination = "sqs/ping"
 Always = true
 Priority = 0
 AllowDM = true # allow DMs
+ErrorHandlers = ["sentry", "discord"]
     [[module.requirement]]
     Alias = "ping"
     Beginning = ["ping", "pong"]
@@ -63,6 +67,7 @@ Destination = "sqs/color"
 Always = false
 Priority = 0
 AllowDM = false # allow DMs
+ErrorHandlers = ["sentry", "discord"]
     [[module.requirement]]
     Alias = "color"
     Beginning = ["color", "colour"]
@@ -77,6 +82,7 @@ Module = "customcommands"
 Destination = "sqs/customcommands"
 Always = false
 Priority = -10
+ErrorHandlers = ["sentry", "discord"]
 
 [[module]] # Chatlog
 Active = false
@@ -87,3 +93,4 @@ Always = true
 Priority = -100
 AllowBots = true
 AllowMyself = true
+ErrorHandlers = ["sentry"]

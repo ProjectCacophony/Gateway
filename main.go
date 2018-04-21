@@ -191,11 +191,9 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 		return
 	}
 
-	lambdaDestinations, processorDestinations, aliases := dhelpers.ContainerDestinations(
+	destinations := dhelpers.ContainerDestinations(
 		session, routingConfig, eventContainer)
-	eventContainer.Alias = aliases
-	eventContainer.Destinations = append(eventContainer.Destinations, lambdaDestinations...)
-	eventContainer.Destinations = append(eventContainer.Destinations, processorDestinations...)
+	eventContainer.Destinations = append(eventContainer.Destinations, destinations...)
 
 	// pack the event data
 	marshalled, err := jsoniter.Marshal(eventContainer)
@@ -206,7 +204,35 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 		return
 	}
 
+	processorDestinations := make([]dhelpers.DestinationData, 0)
+
+	for _, destination := range destinations {
+		switch destination.Type {
+		case dhelpers.LambdaDestinationType:
+			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, eventContainer, destination.Name)
+			if err != nil {
+				fmt.Println(
+					eventContainer.Key+":", "error sending to lambda/"+destination.Name+":",
+					err.Error(),
+				)
+			} else {
+				fmt.Println(
+					eventContainer.Key+":", "sent to lambda/"+destination.Name,
+					"(size: "+humanize.Bytes(uint64(bytesSent))+")",
+				)
+			}
+		case dhelpers.SqsDestinationType:
+			processorDestinations = append(processorDestinations, destination)
+		}
+	}
+
 	if len(processorDestinations) > 0 {
+		var destinationsText string
+		for _, destination := range processorDestinations {
+			destinationsText += destination.Name + ", "
+		}
+		destinationsText = strings.TrimRight(destinationsText, ", ")
+
 		// send to SQS Queue
 		_, err = sqsClient.SendMessage(&sqs.SendMessageInput{
 			DelaySeconds: aws.Int64(0),
@@ -215,31 +241,15 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 		})
 		if err != nil {
 			fmt.Println(
-				eventContainer.Key+":", "error sending to sqs/"+strings.Join(processorDestinations, ",")+":",
+				eventContainer.Key+":", "error sending to sqs/"+destinationsText+":",
 				err.Error(),
 			)
 		} else {
 			fmt.Println(
-				eventContainer.Key+":", "sent to sqs/"+strings.Join(processorDestinations, ","),
+				eventContainer.Key+":", "sent to sqs/"+destinationsText,
 				"(size: "+humanize.Bytes(uint64(binary.Size(marshalled)))+")",
 			)
 		}
 	}
 
-	if len(lambdaDestinations) > 0 {
-		for _, lambdaDestination := range lambdaDestinations {
-			bytesSent, err := dhelpers.StartLambdaAsync(lambdaClient, eventContainer, lambdaDestination)
-			if err != nil {
-				fmt.Println(
-					eventContainer.Key+":", "error sending to lambda/"+lambdaDestination+":",
-					err.Error(),
-				)
-			} else {
-				fmt.Println(
-					eventContainer.Key+":", "sent to lambda/"+lambdaDestination,
-					"(size: "+humanize.Bytes(uint64(bytesSent))+")",
-				)
-			}
-		}
-	}
 }
