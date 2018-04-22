@@ -22,9 +22,8 @@ import (
 )
 
 var (
-	// PREFIXES are all allowed prefixes, TODO: replace with dynamic prefix
-	PREFIXES      = []string{"/"}
 	routingConfig []dhelpers.RoutingRule
+	prefixConfig  []dhelpers.PrefixRule
 	started       time.Time
 	didLaunch     bool
 	sqsQueueURL   string
@@ -58,6 +57,11 @@ func main() {
 	routingConfig, err = dhelpers.GetRoutings()
 	dhelpers.CheckErr(err)
 	dhelpersCache.GetLogger().Infoln("Found", len(routingConfig), "routing rules")
+	prefixConfig, err = dhelpers.GetPrefixes()
+	dhelpers.CheckErr(err)
+	dhelpersCache.GetLogger().Infoln("Found", len(prefixConfig), "prefix rules, "+
+		"default prefixes are ["+strings.Join(dhelpers.GetPrefix(prefixConfig, "", ""), " ")+"]")
+	// TODO: update routing and prefixes at an interval
 
 	// essentially only keep discordgo guild state
 	dhelpersCache.GetDiscord().State.TrackChannels = false
@@ -103,9 +107,6 @@ func onReady(session *discordgo.Session, event *discordgo.Ready) {
 }
 
 func onFirstReady(session *discordgo.Session, event *discordgo.Ready) {
-	PREFIXES = append(PREFIXES, "<@"+session.State.User.ID+">")  // add bot mention to prefixes
-	PREFIXES = append(PREFIXES, "<@!"+session.State.User.ID+">") // add bot alias mention to prefixes
-
 	for _, guild := range session.State.Guilds {
 		if guild.Large {
 			err := session.RequestGuildMembers(guild.ID, "", 0)

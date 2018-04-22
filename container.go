@@ -5,6 +5,8 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	"gitlab.com/project-d-collab/dhelpers"
+	"gitlab.com/project-d-collab/dhelpers/cache"
+	"gitlab.com/project-d-collab/dhelpers/state"
 )
 
 func createEventContainer(receivedAt time.Time, session *discordgo.Session, eventKey string, i interface{}) (container dhelpers.EventContainer) {
@@ -62,14 +64,30 @@ func createEventContainer(receivedAt time.Time, session *discordgo.Session, even
 	case *discordgo.MessageCreate:
 		dDEvent.Type = dhelpers.MessageCreateEventType
 		// args and prefix
-		args, prefix := dhelpers.GetMessageArguments(t.Content, PREFIXES)
+		var guildID string
+		channel, err := state.Channel(t.ChannelID)
+		if err == nil {
+			guildID = channel.GuildID
+		} else {
+			cache.GetLogger().Errorln("error getting channel #", t.ChannelID+":", err.Error())
+		}
+		prefixes := dhelpers.GetPrefix(prefixConfig, dDEvent.BotUserID, guildID)
+		args, prefix := dhelpers.GetMessageArguments(t.Content, prefixes)
 		dDEvent.Args = args
 		dDEvent.Prefix = prefix
 		dDEvent.MessageCreate = t
 	case *discordgo.MessageUpdate:
 		dDEvent.Type = dhelpers.MessageUpdateEventType
 		// args and prefix
-		args, prefix := dhelpers.GetMessageArguments(t.Content, PREFIXES)
+		var guildID string
+		channel, err := state.Channel(t.ChannelID)
+		if err == nil {
+			guildID = channel.GuildID
+		} else {
+			cache.GetLogger().Errorln("error getting channel #", t.ChannelID+":", err.Error())
+		}
+		prefixes := dhelpers.GetPrefix(prefixConfig, dDEvent.BotUserID, guildID)
+		args, prefix := dhelpers.GetMessageArguments(t.Content, prefixes)
 		dDEvent.Args = args
 		dDEvent.Prefix = prefix
 		dDEvent.MessageUpdate = t
