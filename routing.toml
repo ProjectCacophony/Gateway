@@ -36,12 +36,6 @@ ErrorHandlers = ["sentry", "discord"]
     Regex = ""
     DoNotPrependPrefix = false
     CaseSensitive = false
-    [[module.requirement]]
-    Alias = "ping-myself"
-    Beginning = ["ping-myself"]
-    Regex = ""
-    DoNotPrependPrefix = false
-    CaseSensitive = false
 
 [[module]] # Ping Commands
 Active = true
@@ -71,6 +65,21 @@ ErrorHandlers = ["sentry", "discord"]
     [[module.requirement]]
     Alias = "color"
     Beginning = ["color", "colour"]
+    Regex = ""
+    DoNotPrependPrefix = false
+    CaseSensitive = false
+
+[[module]] # Stats
+Active = true
+Events = ["MESSAGE_CREATE"]
+Module = "stats"
+Destination = "sqs/stats"
+Always = false
+Priority = 0
+ErrorHandlers = ["sentry", "discord"]
+    [[module.requirement]]
+    Alias = "stats"
+    Beginning = ["stats", "statistics"]
     Regex = ""
     DoNotPrependPrefix = false
     CaseSensitive = false

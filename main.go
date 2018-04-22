@@ -144,7 +144,7 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 	}
 
 	// update shared state
-	err := dhelpersState.SharedStateEventHandler(session, i) // TODO: deduplication?
+	err := dhelpersState.SharedStateEventHandler(session, i)
 	if err != nil {
 		dhelpersCache.GetLogger().Errorln("state error:", err.Error())
 	}
