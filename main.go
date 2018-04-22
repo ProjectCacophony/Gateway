@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/binary"
-	"flag"
 	"os"
 	"os/signal"
 	"strings"
@@ -10,7 +9,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/bwmarrin/discordgo"
@@ -26,33 +24,18 @@ import (
 var (
 	// PREFIXES are all allowed prefixes, TODO: replace with dynamic prefix
 	PREFIXES      = []string{"/"}
-	awsRegion     string
-	redisAddress  string
 	routingConfig []dhelpers.RoutingRule
-	redisClient   *redis.Client
 	started       time.Time
 	didLaunch     bool
-	sqsClient     *sqs.SQS
 	sqsQueueURL   string
+	redisClient   *redis.Client
 	lambdaClient  *lambda.Lambda
+	sqsClient     *sqs.SQS
 )
 
 func init() {
-	// Parse command line flags (-aws-region AWS_REGION -redis REDIS_ADDRESS -sqs SQS_QUEUE_URL)
-	flag.StringVar(&awsRegion, "aws-region", "", "AWS Region")
-	flag.StringVar(&redisAddress, "redis", "127.0.0.1:6379", "Redis Address")
-	flag.StringVar(&sqsQueueURL, "sqs", "", "SQS Queue Url")
-	flag.Parse()
-	// overwrite with environment variables if set AWS_REGION=… REDIS_ADDRESS=… SQS_QUEUE_URL=…
-	if os.Getenv("AWS_REGION") != "" {
-		awsRegion = os.Getenv("AWS_REGION")
-	}
-	if os.Getenv("REDIS_ADDRESS") != "" {
-		redisAddress = os.Getenv("REDIS_ADDRESS")
-	}
-	if os.Getenv("SQS_QUEUE_URL") != "" {
-		sqsQueueURL = os.Getenv("SQS_QUEUE_URL")
-	}
+	// parse environment variables
+	sqsQueueURL = os.Getenv("SQS_QUEUE_URL")
 }
 
 func main() {
@@ -63,28 +46,18 @@ func main() {
 	components.InitLogger("Gateway")
 	err = components.InitSentry()
 	dhelpers.CheckErr(err)
+	components.InitRedis()
 	err = components.InitDiscord()
+	dhelpers.CheckErr(err)
+	err = components.InitAwsSqs()
+	dhelpers.CheckErr(err)
+	err = components.InitAwsLambda()
 	dhelpers.CheckErr(err)
 
 	// get config
 	routingConfig, err = dhelpers.GetRoutings()
 	dhelpers.CheckErr(err)
 	dhelpersCache.GetLogger().Infoln("Found", len(routingConfig), "routing rules")
-
-	// connect to aws
-	sess := session.Must(session.NewSession(&aws.Config{
-		Region: aws.String(awsRegion),
-	}))
-	sqsClient = sqs.New(sess)
-	lambdaClient = lambda.New(sess)
-
-	// connect to redis
-	redisClient = redis.NewClient(&redis.Options{
-		Addr:     redisAddress,
-		Password: "",
-		DB:       0,
-	})
-	dhelpersCache.SetRedisClient(redisClient)
 
 	// essentially only keep discordgo guild state
 	dhelpersCache.GetDiscord().State.TrackChannels = false
@@ -97,6 +70,11 @@ func main() {
 	dhelpersCache.GetDiscord().AddHandler(onReady)
 	// add the discord event handler
 	dhelpersCache.GetDiscord().AddHandler(eventHandler)
+
+	// get cached client
+	redisClient = dhelpersCache.GetRedisClient()
+	lambdaClient = dhelpersCache.GetAwsLambdaSession()
+	sqsClient = dhelpersCache.GetAwsSqsSession()
 
 	// open Discord Websocket connection
 	err = dhelpersCache.GetDiscord().Open()
