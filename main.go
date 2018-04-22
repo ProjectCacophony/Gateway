@@ -149,7 +149,7 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 		dhelpersCache.GetLogger().Errorln("state error:", err.Error())
 	}
 
-	eventContainer := createEventContainer(receivedAt, session, eventKey, i)
+	eventContainer := dhelpers.CreateEventContainer(started, receivedAt, session, prefixConfig, eventKey, i)
 
 	if eventContainer.Type == "" {
 		return
