@@ -84,6 +84,21 @@ ErrorHandlers = ["sentry", "discord"]
     DoNotPrependPrefix = false
     CaseSensitive = false
 
+[[module]] # LastFM
+Active = true
+Events = ["MESSAGE_CREATE"]
+Module = "lastfm"
+Destination = "sqs/lastfm"
+Always = false
+Priority = 0
+ErrorHandlers = ["sentry", "discord"]
+    [[module.requirement]]
+    Alias = "lastfm"
+    Beginning = ["lastfm", "lf"]
+    Regex = ""
+    DoNotPrependPrefix = false
+    CaseSensitive = false
+
 [[module]] # Custom Commands
 Active = false
 Events = ["MESSAGE_CREATE"]
