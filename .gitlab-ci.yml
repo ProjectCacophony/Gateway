@@ -20,4 +20,4 @@ testing:
   script:
     - diff <(goimports -d .) <(echo -n)
     - go test -v -race ./...
-    - gometalinter.v2 ./... --deadline 5m
+    - gometalinter.v2 ./... --deadline 15m
