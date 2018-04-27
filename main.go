@@ -18,6 +18,7 @@ import (
 	"github.com/go-redis/redis"
 	"github.com/json-iterator/go"
 	"gitlab.com/project-d-collab/Gateway/api"
+	"gitlab.com/project-d-collab/Gateway/metrics"
 	"gitlab.com/project-d-collab/dhelpers"
 	"gitlab.com/project-d-collab/dhelpers/cache"
 	"gitlab.com/project-d-collab/dhelpers/components"
@@ -151,8 +152,12 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 
 	if !dhelpers.IsNewEvent(redisClient, "gateway", eventKey) {
 		cache.GetLogger().Infoln(eventKey+":", "ignored (handled by different gateway)")
+		metrics.EventsDiscarded.Add(1)
 		return
 	}
+
+	// update metrics
+	metrics.CountEvent(i)
 
 	// update shared state
 	err := state.SharedStateEventHandler(session, i)
