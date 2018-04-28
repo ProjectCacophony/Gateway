@@ -99,6 +99,21 @@ ErrorHandlers = ["sentry", "discord"]
     DoNotPrependPrefix = false
     CaseSensitive = false
 
+[[module]] # Gall
+Active = true
+Events = ["MESSAGE_CREATE"]
+Module = "gall"
+Destination = "sqs/gall"
+Always = false
+Priority = 0
+ErrorHandlers = ["sentry", "discord"]
+    [[module.requirement]]
+    Alias = "gall"
+    Beginning = ["gall", "dcinside"]
+    Regex = ""
+    DoNotPrependPrefix = false
+    CaseSensitive = false
+
 [[module]] # Custom Commands
 Active = false
 Events = ["MESSAGE_CREATE"]
