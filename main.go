@@ -27,7 +27,6 @@ import (
 
 var (
 	routingConfig []dhelpers.RoutingRule
-	prefixConfig  []dhelpers.PrefixRule
 	started       time.Time
 	didLaunch     bool
 	sqsQueueURL   string
@@ -62,11 +61,7 @@ func main() {
 	routingConfig, err = dhelpers.GetRoutings()
 	dhelpers.CheckErr(err)
 	cache.GetLogger().Infoln("Found", len(routingConfig), "routing rules")
-	prefixConfig, err = dhelpers.GetPrefixes()
-	dhelpers.CheckErr(err)
-	cache.GetLogger().Infoln("Found", len(prefixConfig), "prefix rules, "+
-		"default prefixes are ["+strings.Join(dhelpers.GetPrefix(prefixConfig, "", ""), " ")+"]")
-	// TODO: update routing and prefixes at an interval
+	// TODO: update routing at an interval
 
 	// essentially only keep discordgo guild state
 	cache.GetDiscord().State.TrackChannels = false
@@ -165,7 +160,7 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 		cache.GetLogger().Errorln("state error:", err.Error())
 	}
 
-	eventContainer := dhelpers.CreateEventContainer(started, receivedAt, session, prefixConfig, eventKey, i)
+	eventContainer := dhelpers.CreateEventContainer(started, receivedAt, session, eventKey, i)
 
 	if eventContainer.Type == "" {
 		return
