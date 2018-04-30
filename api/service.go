@@ -2,8 +2,8 @@ package api
 
 import (
 	"github.com/emicklei/go-restful"
-	"gitlab.com/project-d-collab/Gateway/metrics"
-	"gitlab.com/project-d-collab/dhelpers/apihelper"
+	"gitlab.com/Cacophony/Gateway/metrics"
+	"gitlab.com/Cacophony/dhelpers/apihelper"
 )
 
 // New creates a new restful Web Service for reporting information about the worker

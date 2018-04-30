@@ -17,12 +17,12 @@ import (
 	"github.com/emicklei/go-restful"
 	"github.com/go-redis/redis"
 	"github.com/json-iterator/go"
-	"gitlab.com/project-d-collab/Gateway/api"
-	"gitlab.com/project-d-collab/Gateway/metrics"
-	"gitlab.com/project-d-collab/dhelpers"
-	"gitlab.com/project-d-collab/dhelpers/cache"
-	"gitlab.com/project-d-collab/dhelpers/components"
-	"gitlab.com/project-d-collab/dhelpers/state"
+	"gitlab.com/Cacophony/Gateway/api"
+	"gitlab.com/Cacophony/Gateway/metrics"
+	"gitlab.com/Cacophony/dhelpers"
+	"gitlab.com/Cacophony/dhelpers/cache"
+	"gitlab.com/Cacophony/dhelpers/components"
+	"gitlab.com/Cacophony/dhelpers/state"
 )
 
 var (
