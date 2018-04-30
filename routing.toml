@@ -114,6 +114,21 @@ ErrorHandlers = ["sentry", "discord"]
     DoNotPrependPrefix = false
     CaseSensitive = false
 
+[[module]] # Feed
+Active = true
+Events = ["MESSAGE_CREATE"]
+Module = "feed"
+Destination = "sqs/feed"
+Always = false
+Priority = 0
+ErrorHandlers = ["sentry", "discord"]
+    [[module.requirement]]
+    Alias = "feed"
+    Beginning = ["feed", "rss", "atom"]
+    Regex = ""
+    DoNotPrependPrefix = false
+    CaseSensitive = false
+
 [[module]] # Custom Commands
 Active = false
 Events = ["MESSAGE_CREATE"]
