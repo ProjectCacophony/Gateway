@@ -94,7 +94,7 @@ Priority = 0
 ErrorHandlers = ["sentry", "discord"]
     [[module.requirement]]
     Alias = "lastfm"
-    Beginning = ["lastfm", "lf"]
+    Beginning = ["lastfm", "lf", "fm"]
     Regex = ""
     DoNotPrependPrefix = false
     CaseSensitive = false
