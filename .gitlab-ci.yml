@@ -19,8 +19,13 @@ before_script:
   - apt-get update
   - apt-get install libcairo2-dev -y
   # install go dependencies
-  - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-  - dep ensure
+  # discordgo develop branch
+  - go get github.com/bwmarrin/discordgo
+  - cd ${GOPATH}/src/github.com/bwmarrin/discordgo
+  - git checkout develop
+  - cd ${GOPATH}/src/gitlab.com/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}
+  # all other dependencies
+  - go get -v ./...
   # install linters
   - go get -v golang.org/x/tools/cmd/goimports
   - go get -v gopkg.in/alecthomas/gometalinter.v2

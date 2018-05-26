@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/binary"
 	"net/http"
 	"os"
@@ -14,7 +15,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/bwmarrin/discordgo"
 	"github.com/dustin/go-humanize"
-	"github.com/emicklei/go-restful"
 	"github.com/go-redis/redis"
 	"github.com/json-iterator/go"
 	"gitlab.com/Cacophony/Gateway/api"
@@ -84,18 +84,35 @@ func main() {
 	err = cache.GetDiscord().Open()
 	dhelpers.CheckErr(err)
 
-	// start api
+	// start api server
+	apiServer := &http.Server{
+		Addr: os.Getenv("API_ADDRESS"),
+		// Good practice to set timeouts to avoid Slowloris attacks.
+		WriteTimeout: time.Second * 15,
+		ReadTimeout:  time.Second * 15,
+		IdleTimeout:  time.Second * 60,
+		Handler:      api.New(),
+	}
 	go func() {
-		restful.Add(api.New())
-		cache.GetLogger().Fatal(http.ListenAndServe(os.Getenv("API_ADDRESS"), nil))
+		apiServerListenAndServeErr := apiServer.ListenAndServe()
+		if err != nil && !strings.Contains(err.Error(), "http: Server closed") {
+			cache.GetLogger().Fatal(apiServerListenAndServeErr)
+		}
 	}()
 	cache.GetLogger().Infoln("started API on", os.Getenv("API_ADDRESS"))
 
+	cache.GetLogger().Infoln("Gateway booting completed, took", time.Since(started).String())
+
 	// wait for CTRL+C to stop the Bot
-	cache.GetLogger().Infoln("Bot is now running. Press CTRL-C to exit.")
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-sc
+
+	// shutdown api server
+	apiServerShutdownContext, apiServerCancel := context.WithTimeout(context.Background(), time.Second*15)
+	defer apiServerCancel()
+	err = apiServer.Shutdown(apiServerShutdownContext)
+	dhelpers.LogError(err)
 
 	// disconnect from Discord Websocket
 	err = cache.GetDiscord().Close()
