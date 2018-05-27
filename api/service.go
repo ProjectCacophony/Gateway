@@ -8,13 +8,17 @@ import (
 	"gitlab.com/Cacophony/Gateway/metrics"
 	"gitlab.com/Cacophony/dhelpers"
 	"gitlab.com/Cacophony/dhelpers/apihelper"
+	"gitlab.com/Cacophony/dhelpers/middleware"
 )
 
 // New creates a new restful Web Service for reporting information about the worker
-func New() *muxtrace.Router {
+func New() http.Handler {
 	mux := muxtrace.NewRouter(muxtrace.WithServiceName("Gateway-API"))
 
 	mux.HandleFunc("/stats", getStats)
+
+	// gzip response if accepted
+	mux.Use(middleware.GzipMiddleware)
 
 	return mux
 }
