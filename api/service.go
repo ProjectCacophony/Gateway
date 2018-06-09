@@ -3,27 +3,32 @@ package api
 import (
 	"net/http"
 
-	muxtrace "github.com/DataDog/dd-trace-go/contrib/gorilla/mux"
-	"github.com/json-iterator/go"
+	"github.com/Seklfreak/Robyul2/helpers"
+	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/middleware"
+	"github.com/go-chi/render"
 	"gitlab.com/Cacophony/Gateway/metrics"
-	"gitlab.com/Cacophony/dhelpers"
 	"gitlab.com/Cacophony/dhelpers/apihelper"
-	"gitlab.com/Cacophony/dhelpers/middleware"
+	"gitlab.com/Cacophony/dhelpers/cache"
 )
 
 // New creates a new restful Web Service for reporting information about the worker
 func New() http.Handler {
-	mux := muxtrace.NewRouter(muxtrace.WithServiceName("Gateway-API"))
+	router := chi.NewRouter()
 
-	mux.HandleFunc("/stats", getStats)
+	// setup middleware
+	router.Use(middleware.Recoverer)
+	middleware.DefaultLogger = middleware.RequestLogger(&middleware.DefaultLogFormatter{Logger: cache.GetLogger(), NoColor: false})
+	router.Use(middleware.Logger)
+	router.Use(middleware.DefaultCompress)
+	router.Use(render.SetContentType(render.ContentTypeJSON))
 
-	// gzip response if accepted
-	mux.Use(middleware.GzipMiddleware)
+	router.HandleFunc("/stats", getStats)
 
-	return mux
+	return router
 }
 
-func getStats(w http.ResponseWriter, _ *http.Request) {
+func getStats(w http.ResponseWriter, r *http.Request) {
 	// gather data
 	var result apihelper.GatewayStatus
 	result.Service = apihelper.GenerateServiceInformation()
@@ -57,8 +62,6 @@ func getStats(w http.ResponseWriter, _ *http.Request) {
 	result.Available = true
 
 	// return result
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	err := jsoniter.NewEncoder(w).Encode(result)
-	dhelpers.LogError(err)
+	err := render.Render(w, r, result)
+	helpers.RelaxLog(err)
 }
