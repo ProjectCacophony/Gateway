@@ -3,11 +3,11 @@ package api
 import (
 	"net/http"
 
-	"github.com/Seklfreak/Robyul2/helpers"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/render"
 	"gitlab.com/Cacophony/Gateway/metrics"
+	"gitlab.com/Cacophony/dhelpers"
 	"gitlab.com/Cacophony/dhelpers/apihelper"
 	"gitlab.com/Cacophony/dhelpers/cache"
 )
@@ -63,5 +63,5 @@ func getStats(w http.ResponseWriter, r *http.Request) {
 
 	// return result
 	err := render.Render(w, r, result)
-	helpers.RelaxLog(err)
+	dhelpers.LogError(err)
 }
