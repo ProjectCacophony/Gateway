@@ -10,7 +10,7 @@ import (
 	"gitlab.com/Cacophony/dhelpers"
 	"gitlab.com/Cacophony/dhelpers/apihelper"
 	"gitlab.com/Cacophony/dhelpers/cache"
-	cacophonyMiddleware "gitlab.com/Cacophony/dhelpers/middleware"
+	"gitlab.com/Cacophony/dhelpers/middleware"
 )
 
 // New creates a new restful Web Service for reporting information about the worker
@@ -18,10 +18,10 @@ func New() http.Handler {
 	router := chi.NewRouter()
 
 	// setup middleware
-	router.Use(chiMiddleware.Logger)
-	router.Use(cacophonyMiddleware.Service("gateway"))
-	router.Use(cacophonyMiddleware.Recoverer)
 	chiMiddleware.DefaultLogger = chiMiddleware.RequestLogger(&chiMiddleware.DefaultLogFormatter{Logger: cache.GetLogger(), NoColor: false})
+	router.Use(chiMiddleware.Logger)
+	router.Use(middleware.Service("gateway"))
+	router.Use(middleware.Recoverer)
 	router.Use(chiMiddleware.DefaultCompress)
 	router.Use(render.SetContentType(render.ContentTypeJSON))
 
