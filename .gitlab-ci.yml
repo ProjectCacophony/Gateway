@@ -26,14 +26,11 @@ before_script:
   - cd ${GOPATH}/src/gitlab.com/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}
   # all other dependencies
   - go get -v ./...
-  # install linters
+  # install goimports
   - go get -v golang.org/x/tools/cmd/goimports
-  - go get -v gopkg.in/alecthomas/gometalinter.v2
-  - gometalinter.v2 --install
 
 testing:
   stage: test
   script:
     - bash format_go.sh
     - go test -v -race $(go list ./... | grep -v /vendor/)
-    - gometalinter.v2 --deadline 60m --concurrency=2 --vendor --exclude=^vendor\/ ./...
