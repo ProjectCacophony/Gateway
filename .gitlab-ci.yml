@@ -1,8 +1,5 @@
 image: golang:1.10
 
-services:
-  - redis:latest
-
 variables:
   REDIS_ADDRESS: "redis:6379"
   DOCKER_IMAGE: "${CI_REGISTRY_IMAGE}:${CI_COMMIT_REF_SLUG}"
@@ -25,12 +22,18 @@ Docker Build:
       "${CI_REGISTRY}"
   script:
   - docker pull "${DOCKER_IMAGE}" || true
-  - docker build -t "${DOCKER_IMAGE}" "${PWD}"
+  - >
+    docker build
+    --cache-from "${DOCKER_IMAGE}"
+    --tag "${DOCKER_IMAGE}"
+    "${PWD}"
   - docker push "${DOCKER_IMAGE}"
 
 Go Tests:
   image: ${DOCKER_IMAGE}
   stage: test
+  services:
+    - redis:latest
   before_script:
     # install linters
     - go get -v golang.org/x/tools/cmd/goimports
