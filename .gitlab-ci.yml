@@ -29,24 +29,9 @@ Docker Build:
   - docker push "${DOCKER_IMAGE}"
 
 Go Tests:
+  image: ${DOCKER_IMAGE}
   stage: test
   before_script:
-    # create symlink to ${CI_PROJECT_DIR} in ${GOPATH} and cd there
-    - mkdir -p ${GOPATH}/src/gitlab.com/${CI_PROJECT_NAMESPACE}
-    - cd ${GOPATH}/src/gitlab.com/${CI_PROJECT_NAMESPACE}
-    - ln -s ${CI_PROJECT_DIR}
-    - cd ${CI_PROJECT_NAME}
-    # install dependencies
-    - apt-get update
-    - apt-get install libcairo2-dev -y
-    # install go dependencies
-    # discordgo develop branch
-    - go get github.com/bwmarrin/discordgo
-    - cd ${GOPATH}/src/github.com/bwmarrin/discordgo
-    - git checkout develop
-    - cd ${GOPATH}/src/gitlab.com/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}
-    # all other dependencies
-    - go get -v ./...
     # install linters
     - go get -v golang.org/x/tools/cmd/goimports
     - go get -v gopkg.in/alecthomas/gometalinter.v2
