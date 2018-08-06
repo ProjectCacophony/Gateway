@@ -1,7 +1,7 @@
 ARG UPSTREAM_IMAGE="golang:1.10"
 FROM "${UPSTREAM_IMAGE}"
 
-ARG SRC_DIR="gitlab.com/Cacophony/Pong"
+ARG SRC_DIR="gitlab.com/Cacophony/Gateway"
 WORKDIR "/go/src/${SRC_DIR}"
 
 COPY . .
