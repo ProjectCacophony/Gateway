@@ -28,17 +28,13 @@ Docker Build:
   - docker push "${DOCKER_IMAGE}"
 
 Go Tests:
-  image: "${DOCKER_IMAGE}"
   stage: test
   before_script:
     # create symlink to ${CI_PROJECT_DIR} in ${GOPATH} and cd there
-    - >
-      (
-        mkdir -p ${GOPATH}/src/gitlab.com/${CI_PROJECT_NAMESPACE}
-        cd ${GOPATH}/src/gitlab.com/${CI_PROJECT_NAMESPACE}
-        ln -s ${CI_PROJECT_DIR}
-      )
-
+    - mkdir -p ${GOPATH}/src/gitlab.com/${CI_PROJECT_NAMESPACE}
+    - cd ${GOPATH}/src/gitlab.com/${CI_PROJECT_NAMESPACE}
+    - ln -s ${CI_PROJECT_DIR}
+    - cd ${CI_PROJECT_NAME}
     # install dependencies
     - apt-get update
     - apt-get install libcairo2-dev -y
