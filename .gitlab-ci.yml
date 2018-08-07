@@ -43,5 +43,6 @@ Go Tests:
         gometalinter.v2 --install
       )
   script:
-    - ./format_go.sh
-    - go list ./... | grep -v '/vendor/' | go test -v -race -
+    - ./go_format.sh
+    - ./go_test.sh
+
