@@ -1,6 +1,8 @@
 image: golang:1.10
 
 variables:
+  TF_IMAGE: hashicorp/terraform:0.11.7
+  TF_DIR: terraform
   DOCKER_IMAGE: "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}"
   DOCKER_IMAGE_PREV: "${CI_REGISTRY_IMAGE}:${CI_COMMIT_BEFORE_SHA}"
 
@@ -43,11 +45,19 @@ Go Tests:
 
 Deploy!:
   image:
-    name: hashicorp/terraform:0.11.7
+    name: "${TF_IMAGE}"
     entrypoint: ["/usr/bin/env"]
   stage: deploy
   before_script:
-    - cd terraform
+    - cd "${TF_DIR}"
+    - >
+      [ -z "${AWS_ACCESS_KEY_ID// }" ] &&
+      export AWS_ACCESS_KEY_ID=${RO_AWS_ACCESS_KEY_ID} &&
+      echo "Read-only Access Key ID loaded."
+    - >
+      [ -z "${AWS_SECRET_ACCESS_KEY// }" ] &&
+      export AWS_SECRET_ACCESS_KEY=${RO_AWS_SECRET_ACCESS_KEY} &&
+      echo "Read-only Secret Access Key loaded."
     - terraform init
   script:
     - terraform plan -out current.tfplan
