@@ -9,14 +9,15 @@ FILES=()
 
 while read -r dir; do
   DIRS+=( "${dir}" )
-done < <(go list -f {{.Dir}} ./... | grep -v '/vendor/')
+done < <(go list -f "{{.Dir}}" ./... | grep -v '/vendor/')
 
 for dir in "${DIRS[@]}"; do
-  find "${dir}" -type f -name '*.go' | while read -r file; do
+  while read -r file; do
+    #shellcheck disable=SC1001
     if [[ ! "${file}" =~ ^.+\/helpers\/assets\.go$ ]]; then
       FILES+=( "${file}" )
     fi
-  done
+  done < <(find "${dir}" -type f -name '*.go')
 done
 
 
