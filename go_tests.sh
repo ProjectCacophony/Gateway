@@ -6,4 +6,4 @@ done < <(go list ./... | grep -v '/vendor/')
 
 echo "Will test ${#PKGS} packages."
 
-go test -v -race "${PKGS}"
+go test -v -race "${PKGS[@]}"
