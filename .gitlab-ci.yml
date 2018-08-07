@@ -7,6 +7,7 @@ variables:
 stages:
   - build
   - test
+  - deploy
 
 Docker Build:
   stage: build
@@ -40,3 +41,14 @@ Go Tests:
     - "${CI_PROJECT_DIR}/go_format.sh"
     - "${CI_PROJECT_DIR}/go_tests.sh"
 
+Deploy!:
+  image:
+    name: hashicorp/terraform:0.11.7
+    entrypoint: ["/usr/bin/env"]
+  stage: deploy
+  before_script:
+    - cd terraform
+    - terraform init
+  script:
+    - terraform plan -out current.tfplan
+    - terraform apply current.tfplan

@@ -83,3 +83,6 @@ abuild
 
 # vim swap files
 *.swp
+
+# Terraform temporary directory
+.terraform
