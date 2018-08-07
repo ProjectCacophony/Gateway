@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 unset dirs files
 dirs=$(go list -f {{.Dir}} ./... | grep -v /vendor/)
