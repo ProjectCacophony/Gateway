@@ -1,7 +1,6 @@
 image: golang:1.10
 
 variables:
-  REDIS_ADDRESS: "redis:6379"
   DOCKER_IMAGE: "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}"
   DOCKER_IMAGE_PREV: "${CI_REGISTRY_IMAGE}:${CI_COMMIT_BEFORE_SHA}"
 
@@ -32,6 +31,8 @@ Docker Build:
 Go Tests:
   image: ${DOCKER_IMAGE}
   stage: test
+  variables:
+    REDIS_ADDRESS: "redis:6379"
   services:
     - redis:latest
   before_script:
