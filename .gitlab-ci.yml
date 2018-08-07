@@ -35,13 +35,10 @@ Go Tests:
   services:
     - redis:latest  
   before_script:
-    - >
-      (
-        cd ${GOPATH}/src/gitlab.com/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME} || exit
-        go get -v golang.org/x/tools/cmd/goimports
-        go get -v gopkg.in/alecthomas/gometalinter.v2
-        gometalinter.v2 --install
-      )
+    - cd ${GOPATH}/src/gitlab.com/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME} || exit
+    - go get -v golang.org/x/tools/cmd/goimports
+    - go get -v gopkg.in/alecthomas/gometalinter.v2
+    - gometalinter.v2 --install
   script:
     - ./go_format.sh
     - ./go_tests.sh
