@@ -2,7 +2,8 @@ image: golang:1.10
 
 variables:
   REDIS_ADDRESS: "redis:6379"
-  DOCKER_IMAGE: "${CI_REGISTRY_IMAGE}:${CI_COMMIT_REF_SLUG}"
+  DOCKER_IMAGE: "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}"
+  DOCKER_IMAGE_PREV: "${CI_REGISTRY_IMAGE}:${CI_COMMIT_BEFORE_SHA}"
 
 stages:
   - build
@@ -20,10 +21,10 @@ Docker Build:
       --password "${CI_REGISTRY_PASSWORD}"
       "${CI_REGISTRY}"
   script:
-  - docker pull "${DOCKER_IMAGE}" || true
+  - docker pull "${DOCKER_IMAGE_PREV}" || true
   - >
     docker build
-    --cache-from "${DOCKER_IMAGE}"
+    --cache-from "${DOCKER_IMAGE_PREV}"
     --tag "${DOCKER_IMAGE}"
     "${PWD}"
   - docker push "${DOCKER_IMAGE}"
