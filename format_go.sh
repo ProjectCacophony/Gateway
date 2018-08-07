@@ -1,14 +1,23 @@
 #!/usr/bin/env bash
 
-unset dirs files
-dirs=$(go list -f {{.Dir}} ./... | grep -v /vendor/)
-    for d in $dirs
-do
-    for f in $d/*.go
-    do
-        if ! [[ $f =~ ^.+\/helpers\/assets\.go$ ]]; then
-            files="${files} $f"
-        fi
-    done
+unset \
+  DIRS \
+  FILES
+
+DIRS=()
+FILES=()
+
+while read -r dir; do
+  DIRS+=( "${dir}" )
+done < <(go list -f {{.Dir}} ./... | grep -v '/vendor/')
+
+for dir in "${DIRS[@]}"; do
+  find "${dir}" -type f -name '*.go' | while read -r file; do
+    if [[ ! "${file}" =~ ^.+\/helpers\/assets\.go$ ]]; then
+      FILES+=( "${file}" )
+    fi
+  done
 done
-diff <(gofmt -d $files) <(echo -n)
+
+
+diff <(gofmt -d "${FILES[@]}") <(echo -n)
