@@ -31,10 +31,6 @@ Docker Build:
 Go Tests:
   image: ${DOCKER_IMAGE}
   stage: test
-  variables:
-    REDIS_ADDRESS: "redis:6379"
-  services:
-    - redis:latest
   before_script:
     - cd ${GOPATH}/src/gitlab.com/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME} || exit
     - go get -v golang.org/x/tools/cmd/goimports
