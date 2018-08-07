@@ -44,5 +44,5 @@ Go Tests:
       )
   script:
     - ./go_format.sh
-    - ./go_test.sh
+    - ./go_tests.sh
 
