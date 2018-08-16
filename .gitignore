@@ -80,3 +80,6 @@ vendor/
 ### Repo ###
 gateway
 abuild
+
+# vim swap files
+*.swp
