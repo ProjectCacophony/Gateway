@@ -12,9 +12,7 @@ import (
 
 	"sync"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/lambda"
-	"github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/Shopify/sarama"
 	"github.com/bwmarrin/discordgo"
 	"github.com/dustin/go-humanize"
 	"github.com/go-redis/redis"
@@ -31,16 +29,9 @@ var (
 	routingConfig []dhelpers.RoutingRule
 	started       time.Time
 	didLaunch     bool
-	sqsQueueURL   string
 	redisClient   *redis.Client
-	lambdaClient  *lambda.Lambda
-	sqsClient     *sqs.SQS
+	kafkaProducer sarama.SyncProducer
 )
-
-func init() {
-	// parse environment variables
-	sqsQueueURL = os.Getenv("SQS_QUEUE_URL")
-}
 
 func main() {
 	started = time.Now()
@@ -54,9 +45,7 @@ func main() {
 	components.InitRedis()
 	err = components.InitDiscord()
 	dhelpers.CheckErr(err)
-	err = components.InitAwsSqs()
-	dhelpers.CheckErr(err)
-	err = components.InitAwsLambda()
+	err = components.InitKafkaProducer()
 	dhelpers.CheckErr(err)
 
 	// get config
@@ -77,10 +66,9 @@ func main() {
 	// add the discord event handler
 	cache.GetDiscord().AddHandler(eventHandler)
 
-	// get cached client
+	// get cached clients
 	redisClient = cache.GetRedisClient()
-	lambdaClient = cache.GetAwsLambdaSession()
-	sqsClient = cache.GetAwsSqsSession()
+	kafkaProducer = cache.GetKafkaProducer()
 
 	// open Discord Websocket connection
 	err = cache.GetDiscord().Open()
@@ -132,6 +120,17 @@ func main() {
 		err = apiServer.Shutdown(context.Background())
 		dhelpers.LogError(err)
 		cache.GetLogger().Infoln("Shut API server down")
+		exitGroup.Done()
+	}()
+
+	// Kafka Producer shutdown goroutine
+	exitGroup.Add(1)
+	go func() {
+		// shutdown Kafka Producer
+		cache.GetLogger().Infoln("Shutting Kafka Producer down…")
+		err = cache.GetKafkaProducer().Close()
+		dhelpers.LogError(err)
+		cache.GetLogger().Infoln("Shut Kafka Producer down")
 		exitGroup.Done()
 	}()
 
@@ -227,53 +226,37 @@ func eventHandler(session *discordgo.Session, i interface{}) {
 		return
 	}
 
-	processorDestinations := make([]dhelpers.DestinationData, 0)
+	kafkaDestinations := make([]dhelpers.DestinationData, 0)
 
-	var bytesSent int
 	for _, destination := range destinations {
 		switch destination.Type {
-		case dhelpers.LambdaDestinationType:
-			bytesSent, err = dhelpers.StartLambdaAsync(lambdaClient, eventContainer, destination.Name)
-			if err != nil {
-				cache.GetLogger().Errorln(
-					eventContainer.Key+":", "error sending to lambda/"+destination.Name+":",
-					err.Error(),
-				)
-			} else {
-				cache.GetLogger().Infoln(
-					eventContainer.Key+":", "sent to lambda/"+destination.Name,
-					"(size: "+humanize.Bytes(uint64(bytesSent))+")",
-				)
-			}
-		case dhelpers.SqsDestinationType:
-			processorDestinations = append(processorDestinations, destination)
+		case dhelpers.KafkaDestinationType:
+			kafkaDestinations = append(kafkaDestinations, destination)
 		}
 	}
 
-	if len(processorDestinations) > 0 {
+	if len(kafkaDestinations) > 0 {
 		var destinationsText string
-		for _, destination := range processorDestinations {
+		for _, destination := range kafkaDestinations {
 			destinationsText += destination.Name + ", "
 		}
 		destinationsText = strings.TrimRight(destinationsText, ", ")
 
-		// send to SQS Queue
-		_, err = sqsClient.SendMessage(&sqs.SendMessageInput{
-			DelaySeconds: aws.Int64(0),
-			MessageBody:  aws.String(string(marshalled)),
-			QueueUrl:     aws.String(sqsQueueURL),
+		// publish to Kafka Producer
+		_, _, err = kafkaProducer.SendMessage(&sarama.ProducerMessage{
+			Topic: "cacophony",
+			Value: sarama.ByteEncoder(marshalled),
 		})
 		if err != nil {
 			cache.GetLogger().Errorln(
-				eventContainer.Key+":", "error sending to sqs/"+destinationsText+":",
+				eventContainer.Key+":", "error sending to kafka/"+destinationsText+":",
 				err.Error(),
 			)
 		} else {
 			cache.GetLogger().Infoln(
-				eventContainer.Key+":", "sent to sqs/"+destinationsText,
+				eventContainer.Key+":", "sent to kafka/"+destinationsText,
 				"(size: "+humanize.Bytes(uint64(binary.Size(marshalled)))+")",
 			)
 		}
 	}
-
 }
