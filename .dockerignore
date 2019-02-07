@@ -1,8 +1,0 @@
-/.deployment
-/.dockerignore
-/.git
-/.gitignore
-/.gitlab-ci.yml
-/*.sh
-/Dockerfile
-/LICENSE
