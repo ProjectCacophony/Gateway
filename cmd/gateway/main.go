@@ -2,16 +2,17 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
 	"gitlab.com/Cacophony/Gateway/pkg/handler"
-	kitDiscordgo "gitlab.com/Cacophony/Gateway/pkg/kit/discordgo"
 	"gitlab.com/Cacophony/Gateway/pkg/kit/logging"
 	"gitlab.com/Cacophony/Gateway/pkg/publisher"
 	"go.uber.org/zap"
@@ -34,13 +35,17 @@ func main() {
 	logger, err := logging.NewLogger(
 		config.Environment,
 		ServiceName,
+		config.LoggingDiscordWebhook,
+		&http.Client{
+			Timeout: 10 * time.Second,
+		},
 	)
 	if err != nil {
 		panic(errors.Wrap(err, "unable to initialise launcher"))
 	}
 
 	// init discordgo session
-	discordgo.Logger = kitDiscordgo.Logger(
+	discordgo.Logger = logging.DiscordgoLogger(
 		logger.With(zap.String("feature", "discordgo")),
 	)
 

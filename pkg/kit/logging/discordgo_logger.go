@@ -1,4 +1,4 @@
-package discordgo
+package logging
 
 import (
 	"fmt"
@@ -9,8 +9,8 @@ import (
 	"go.uber.org/zap"
 )
 
-// Logger returns a logger to use with github.com/bwmarrin/discordgo
-func Logger(logger *zap.Logger) func(msgL, caller int, format string, a ...interface{}) {
+// DiscordgoLogger returns a logger to use with github.com/bwmarrin/discordgo
+func DiscordgoLogger(logger *zap.Logger) func(msgL, caller int, format string, a ...interface{}) {
 
 	return func(msgL, caller int, format string, a ...interface{}) {
 		pc, file, line, _ := runtime.Caller(caller)

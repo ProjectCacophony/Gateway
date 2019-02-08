@@ -31,6 +31,10 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 	var err error
 	var routingKey string
 
+	if session.State == nil || session.State.User == nil {
+		return
+	}
+
 	event, err := events.GenerateEventFromDiscordgoEvent(
 		session.State.User.ID,
 		eventItem,

@@ -5,7 +5,8 @@ import (
 )
 
 type config struct {
-	Environment  logging.Environment `envconfig:"ENVIRONMENT" default:"development"`
-	DiscordToken string              `envconfig:"DISCORD_TOKEN"`
-	AMQPDSN      string              `envconfig:"AMQP_DSN" default:"amqp://guest:guest@localhost:5672/"`
+	Environment           logging.Environment `envconfig:"ENVIRONMENT" default:"development"`
+	DiscordToken          string              `envconfig:"DISCORD_TOKEN"`
+	AMQPDSN               string              `envconfig:"AMQP_DSN" default:"amqp://guest:guest@localhost:5672/"`
+	LoggingDiscordWebhook string              `envconfig:"LOGGING_DISCORD_WEBHOOK"`
 }
