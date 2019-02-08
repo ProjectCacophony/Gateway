@@ -24,6 +24,7 @@ Go Lint:
 Docker Build:
   stage: build
   image: docker:latest
+  cache: {}
   services:
     - docker:dind
   before_script:
