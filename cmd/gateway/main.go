@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"github.com/streadway/amqp"
 	"gitlab.com/Cacophony/Gateway/pkg/handler"
 	"gitlab.com/Cacophony/Gateway/pkg/publisher"
+	"gitlab.com/Cacophony/go-kit/api"
 	"gitlab.com/Cacophony/go-kit/logging"
 	"go.uber.org/zap"
 )
@@ -86,6 +88,10 @@ func main() {
 
 	discordSession.AddHandler(eventHandler.OnDiscordEvent)
 
+	// init http server
+	httpRouter := api.NewRouter()
+	httpServer := api.NewHTTPServer(config.Port, httpRouter)
+
 	// start discord session
 	err = discordSession.Open()
 	if err != nil {
@@ -94,11 +100,22 @@ func main() {
 		)
 	}
 
+	go func() {
+		err := httpServer.ListenAndServe()
+		if err != http.ErrServerClosed {
+			logger.Fatal("http server error",
+				zap.Error(err),
+				zap.String("feature", "http-server"),
+			)
+		}
+	}()
+
 	logger.Info("service is running",
 		zap.String(
 			"discord user",
 			fmt.Sprintf("%s (#%s)", discordSession.State.User.String(), discordSession.State.User.ID),
 		),
+		zap.Int("port", config.Port),
 	)
 
 	// wait for CTRL+C to stop the service
@@ -107,6 +124,9 @@ func main() {
 	<-quitChannel
 
 	// shutdown features
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	defer cancel()
 
 	err = discordSession.Close()
 	if err != nil {
@@ -118,6 +138,13 @@ func main() {
 	err = amqpConnection.Close()
 	if err != nil {
 		logger.Error("unable to close AMQP session",
+			zap.Error(err),
+		)
+	}
+
+	err = httpServer.Shutdown(ctx)
+	if err != nil {
+		logger.Error("unable to shutdown HTTP Server",
 			zap.Error(err),
 		)
 	}
