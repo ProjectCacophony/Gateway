@@ -6,7 +6,10 @@ stages:
   - test
   - build
 
-# TODO: cache go dependencies
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - $(go env GOPATH)
 
 Go Lint:
   stage: test
