@@ -1,7 +1,7 @@
 package main
 
 import (
-	"gitlab.com/Cacophony/Gateway/pkg/kit/logging"
+	"gitlab.com/Cacophony/go-kit/logging"
 )
 
 type config struct {

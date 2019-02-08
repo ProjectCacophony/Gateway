@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 
 	"github.com/bwmarrin/discordgo"
-	"gitlab.com/Cacophony/Gateway/pkg/kit/events"
 	"gitlab.com/Cacophony/Gateway/pkg/publisher"
+	"gitlab.com/Cacophony/go-kit/events"
 	"go.uber.org/zap"
 )
 

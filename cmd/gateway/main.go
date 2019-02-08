@@ -13,8 +13,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
 	"gitlab.com/Cacophony/Gateway/pkg/handler"
-	"gitlab.com/Cacophony/Gateway/pkg/kit/logging"
 	"gitlab.com/Cacophony/Gateway/pkg/publisher"
+	"gitlab.com/Cacophony/go-kit/logging"
 	"go.uber.org/zap"
 )
 
