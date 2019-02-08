@@ -6,14 +6,13 @@ stages:
   - test
   - build
 
-cache:
-  key: ${CI_COMMIT_REF_SLUG}
-  paths:
-    - $(go env GOPATH)
-
 Go Lint:
   stage: test
   image: golang:1.11
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - $(GOPATH)/
   before_script:
     - go mod download
     - go get -u golang.org/x/tools/cmd/goimports
