@@ -70,6 +70,7 @@ func main() {
 	publisherClient, err := publisher.NewPublisher(
 		amqpConnection,
 		"cacophony",
+		config.EventTTL,
 	)
 	if err != nil {
 		logger.Fatal("unable to initialise Publisher",

@@ -2,6 +2,8 @@ package publisher
 
 import (
 	"encoding/json"
+	"strconv"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
@@ -11,18 +13,26 @@ import (
 type Publisher struct {
 	amqpConnection   *amqp.Connection
 	amqpExchangeName string
+	eventTTL         time.Duration
 
-	amqpChannel *amqp.Channel
+	amqpChannel    *amqp.Channel
+	amqpExpiration string
 }
 
 // NewPublisher creates new Publisher
 func NewPublisher(
 	amqpConnection *amqp.Connection,
 	amqpExchangeName string,
+	eventTTL time.Duration,
 ) (*Publisher, error) {
 	publisher := &Publisher{
 		amqpConnection:   amqpConnection,
 		amqpExchangeName: amqpExchangeName,
+		eventTTL:         eventTTL,
+	}
+
+	if eventTTL > 0 {
+		publisher.amqpExpiration = strconv.Itoa(int(eventTTL.Seconds() * 1000))
 	}
 
 	err := publisher.init()
@@ -75,6 +85,7 @@ func (p *Publisher) Publish(routingKey string, body json.RawMessage) error {
 			Body:            body,
 			DeliveryMode:    amqp.Transient,
 			Priority:        0,
+			Expiration:      p.amqpExpiration,
 		},
 	)
 
