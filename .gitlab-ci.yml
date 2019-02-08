@@ -6,12 +6,14 @@ stages:
   - test
   - build
 
+# TODO: cache go dependencies
+
 Go Lint:
   stage: test
   image: golang:1.11
   before_script:
     - go get -u golang.org/x/tools/cmd/goimports
-    - go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
+    - curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.13.2
     - export GO111MODULE=on
     - cd ${GOPATH}/src/gitlab.com/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}
     - go mod download
