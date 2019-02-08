@@ -12,8 +12,14 @@ import (
 	"github.com/streadway/amqp"
 	"gitlab.com/Cacophony/Gateway/pkg/handler"
 	kitDiscordgo "gitlab.com/Cacophony/Gateway/pkg/kit/discordgo"
+	"gitlab.com/Cacophony/Gateway/pkg/kit/logging"
 	"gitlab.com/Cacophony/Gateway/pkg/publisher"
 	"go.uber.org/zap"
+)
+
+const (
+	// ServiceName is the name of the service
+	ServiceName = "gateway"
 )
 
 func main() {
@@ -25,7 +31,10 @@ func main() {
 	}
 
 	// init logger
-	logger, err := zap.NewDevelopment()
+	logger, err := logging.NewLogger(
+		config.Environment,
+		ServiceName,
+	)
 	if err != nil {
 		panic(errors.Wrap(err, "unable to initialise launcher"))
 	}

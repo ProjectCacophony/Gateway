@@ -14,6 +14,8 @@ type Type string
 // defines various Event Types
 const (
 	MessageCreateEventType Type = "message_create"
+	MessageUpdateEventType Type = "message_update"
+	MessageDeleteEventType Type = "message_delete"
 )
 
 // Event represents an Event
@@ -24,6 +26,8 @@ type Event struct {
 
 	// discordgo event data
 	MessageCreate *discordgo.MessageCreate
+	MessageUpdate *discordgo.MessageUpdate
+	MessageDelete *discordgo.MessageDelete
 }
 
 // GenerateRoutingKey generates an Routing Key for AMQP based on a Event Type
@@ -42,6 +46,16 @@ func GenerateEventFromDiscordgoEvent(botUserID string, eventItem interface{}) (*
 	case *discordgo.MessageCreate:
 		event.Type = MessageCreateEventType
 		event.MessageCreate = t
+
+		return event, nil
+	case *discordgo.MessageUpdate:
+		event.Type = MessageUpdateEventType
+		event.MessageUpdate = t
+
+		return event, nil
+	case *discordgo.MessageDelete:
+		event.Type = MessageDeleteEventType
+		event.MessageDelete = t
 
 		return event, nil
 	}
