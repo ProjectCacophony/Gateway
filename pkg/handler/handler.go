@@ -42,7 +42,12 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 	if err != nil {
 		eh.logger.Debug("unable to generate event",
 			zap.Error(err),
+			zap.Any("event", eventItem),
 		)
+		return
+	}
+
+	if event == nil {
 		return
 	}
 

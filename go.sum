@@ -19,8 +19,8 @@ github.com/streadway/amqp v0.0.0-20181205114330-a314942b2fd9/go.mod h1:1WNBiOZtZ
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.3.0 h1:TivCn/peBQ7UY8ooIcPgZFpTNSz0Q2U6UrFlUfqbe0Q=
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
-gitlab.com/Cacophony/go-kit v0.0.0-20190208194649-8f6d1ba3785b h1:Dym/iBuMt/1yLaEVLrHCW9c3aVcLl+Re2kVVfUnL148=
-gitlab.com/Cacophony/go-kit v0.0.0-20190208194649-8f6d1ba3785b/go.mod h1:Oz+pdR1fP/ydLj8uW3mHlGFudQ6EvNIRB+YvloM2tdw=
+gitlab.com/Cacophony/go-kit v0.0.0-20190209153417-f3baef21900b h1:/E3hbbKi57dn3+9/lW9GW1EGHudiN/uqszMJx5B+DLI=
+gitlab.com/Cacophony/go-kit v0.0.0-20190209153417-f3baef21900b/go.mod h1:wh9n/Yj8t1c0G3kou27avYvwCfkiArwF5bTY/sSX6HI=
 go.uber.org/atomic v1.3.2 h1:2Oa65PReHzfn29GpvgsYwloV9AVFHPDk8tYxt2c2tr4=
 go.uber.org/atomic v1.3.2/go.mod h1:gD2HeocX3+yG+ygLZcrzQJaqmWj9AIm7n08wl/qW/PE=
 go.uber.org/multierr v1.1.0 h1:HoEmRHQPVSqub6w2z2d2EOVs2fjyFRGyofhKuyDq0QI=
