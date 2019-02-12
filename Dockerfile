@@ -35,5 +35,8 @@ COPY --from=builder /src/bin/linux.amd64 /
 # expose http server port
 #EXPOSE 8000
 
+# switch to user without permissions
+USER nobody
+
 # run the binary
 ENTRYPOINT [ "/gateway" ]
