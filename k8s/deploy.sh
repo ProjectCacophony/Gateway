@@ -15,5 +15,5 @@ applyCommand+="$manifest"
 applyCommand+=$'\n'
 applyCommand+="EOF"
 
-echo "$applyCommand"
+# echo "$applyCommand"
 eval "$applyCommand"
