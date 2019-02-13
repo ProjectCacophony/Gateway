@@ -5,6 +5,7 @@ variables:
 stages:
   - test
   - build
+  - staging
 
 Go Lint:
   stage: test
@@ -40,3 +41,15 @@ Docker Build:
       --tag "${DOCKER_IMAGE}"
       "${PWD}"
     - docker push "${DOCKER_IMAGE}"
+
+Deploy Staging:
+  stage: staging
+  image: "${RUNNER_DOCKER_IMAGE}"
+  cache: {}
+  only:
+    refs:
+      - master
+  variables:
+    ENVIRONMENT: "development"
+  script:
+    - ./k8s/deploy.sh
