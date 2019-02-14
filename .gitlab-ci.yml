@@ -53,6 +53,7 @@ Deploy Staging:
   script:
     - k8s/render.sh
     - kubectl apply -f k8s/manifest.yaml
+    - kubectl rollout status deployment.v1.apps/gateway
   tags:
     - k8s
     - dev
