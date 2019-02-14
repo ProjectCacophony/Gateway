@@ -30,13 +30,13 @@ spec:
           readinessProbe:
             httpGet:
               path: /status
-              port: "{{PORT}}"
+              port: {{PORT}}
             initialDelaySeconds: 2
             periodSeconds: 5
           livenessProbe:
             httpGet:
               path: /status
-              port: "{{PORT}}"
+              port: {{PORT}}
             initialDelaySeconds: 5
             periodSeconds: 10
           env:
