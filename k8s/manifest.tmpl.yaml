@@ -27,6 +27,18 @@ spec:
       containers:
         - name: gateway
           image: "registry.gitlab.com/cacophony/gateway:{{DOCKER_IMAGE_HASH}}"
+          readinessProbe:
+            httpGet:
+              path: /status
+              port: "{{PORT}}"
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /status
+              port: "{{PORT}}"
+            initialDelaySeconds: 5
+            periodSeconds: 10
           env:
           - name: PORT
             value: "{{PORT}}"

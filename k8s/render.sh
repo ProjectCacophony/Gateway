@@ -6,7 +6,7 @@
 # LOGGING_DISCORD_WEBHOOK
 # PORT
 # ENVIRONMENT
-# DOCKER_IMAGE
+# DOCKER_IMAGE_HASH
 
 template="k8s/manifest.tmpl.yaml"
 target="k8s/manifest.yaml"
