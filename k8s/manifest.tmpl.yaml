@@ -26,7 +26,7 @@ spec:
     spec:
       containers:
         - name: gateway
-          image: ${DOCKER_IMAGE}
+          image: {{DOCKER_IMAGE}}
           env:
           - name: PORT
             value: "{{PORT}}"

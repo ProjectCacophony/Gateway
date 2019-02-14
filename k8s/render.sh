@@ -6,6 +6,7 @@
 # LOGGING_DISCORD_WEBHOOK
 # PORT
 # ENVIRONMENT
+# DOCKER_IMAGE
 
 template="k8s/manifest.tmpl.yaml"
 target="k8s/manifest.yaml"
@@ -16,3 +17,4 @@ sed -i -e "s/{{AMQP_DSN}}/$AMQP_DSN/g" "$target"
 sed -i -e "s/{{LOGGING_DISCORD_WEBHOOK}}/$LOGGING_DISCORD_WEBHOOK/g" "$target"
 sed -i -e "s/{{PORT}}/$PORT/g" "$target"
 sed -i -e "s/{{ENVIRONMENT}}/$ENVIRONMENT/g" "$target"
+sed -i -e "s/{{DOCKER_IMAGE}}/$DOCKER_IMAGE/g" "$target"
