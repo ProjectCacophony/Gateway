@@ -2,11 +2,12 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: gateway-secret
+  namespace: cacophony
 type: Opaque
 stringData:
-  discordToken: "${DISCORD_TOKEN}"
-  amqpDSN: "${AMQP_DSN}"
-  loggingDiscordWebhook: "${LOGGING_DISCORD_WEBHOOK}"
+  discordToken: "{{DISCORD_TOKEN}}"
+  amqpDSN: "{{AMQP_DSN}}"
+  loggingDiscordWebhook: "{{LOGGING_DISCORD_WEBHOOK}}"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -19,6 +20,7 @@ spec:
       app: gateway
   template:
     metadata:
+      namespace: cacophony
       labels:
         app: gateway
     spec:
@@ -27,9 +29,9 @@ spec:
           image: ${DOCKER_IMAGE}
           env:
           - name: PORT
-            value: "${PORT}"
+            value: "{{PORT}}"
           - name: ENVIRONMENT
-            value: "${ENVIRONMENT}"
+            value: "{{ENVIRONMENT}}"
           - name: DISCORD_TOKEN
             valueFrom:
               secretKeyRef:

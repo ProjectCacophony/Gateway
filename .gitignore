@@ -12,3 +12,5 @@
 *.out
 
 bin/
+
+k8s/manifest.yaml*

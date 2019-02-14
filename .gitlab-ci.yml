@@ -49,7 +49,9 @@ Deploy Staging:
   only:
     refs:
       - master
-  variables:
-    ENVIRONMENT: "development"
   script:
-    - ./k8s/deploy.sh
+    - k8s/render.sh
+    - kubectl apply -f k8s/manifest.yaml
+  tags:
+    - k8s
+    - dev
