@@ -8,7 +8,6 @@ stages:
   - test
   - build
   - staging
-  - release
 
 Go Lint:
   stage: test
