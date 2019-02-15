@@ -43,22 +43,6 @@ Docker Build:
       --tag "${DOCKER_IMAGE}"
       "${PWD}"
     - docker push "${DOCKER_IMAGE}"
-
-Docker Release:
-  stage: build
-  image: docker:latest
-  cache: {}
-  only:
-    refs:
-      - master
-  before_script:
-    - >
-      docker login
-      --username "${CI_REGISTRY_USER}"
-      --password "${CI_REGISTRY_PASSWORD}"
-      "${CI_REGISTRY}"
-  script:
-    - docker pull "${DOCKER_IMAGE}"
     - docker tag "${DOCKER_IMAGE}" "${DOCKER_RELEASE_IMAGE}"
     - docker push "${DOCKER_RELEASE_IMAGE}"
 
