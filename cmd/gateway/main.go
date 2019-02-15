@@ -2,14 +2,12 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/bwmarrin/discordgo"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
@@ -43,22 +41,9 @@ func main() {
 		},
 	)
 	if err != nil {
-		panic(errors.Wrap(err, "unable to initialise launcher"))
+		panic(errors.Wrap(err, "unable to initialise logger"))
 	}
-
-	// init discordgo session
-	discordgo.Logger = logging.DiscordgoLogger(
-		logger.With(zap.String("feature", "discordgo")),
-	)
-
-	discordSession, err := discordgo.New("Bot " + config.DiscordToken)
-	if err != nil {
-		logger.Fatal("unable to initialise discord session",
-			zap.Error(err),
-		)
-	}
-	discordSession.LogLevel = discordgo.LogInformational
-	discordSession.StateEnabled = false
+	defer logger.Sync() // nolint: errcheck
 
 	// init AMQP session
 	amqpConnection, err := amqp.Dial(config.AMQPDSN)
@@ -86,19 +71,9 @@ func main() {
 		publisherClient,
 	)
 
-	discordSession.AddHandler(eventHandler.OnDiscordEvent)
-
 	// init http server
 	httpRouter := api.NewRouter()
 	httpServer := api.NewHTTPServer(config.Port, httpRouter)
-
-	// start discord session
-	err = discordSession.Open()
-	if err != nil {
-		logger.Fatal("unable to start discord session",
-			zap.Error(err),
-		)
-	}
 
 	go func() {
 		err := httpServer.ListenAndServe()
@@ -110,11 +85,13 @@ func main() {
 		}
 	}()
 
+	// launch all sessions:
+	discordCloseChannel := make(chan interface{}, len(config.DiscordTokens))
+	for botID, token := range config.DiscordTokens {
+		NewSession(logger.With(zap.String("bot_id", botID)), token, eventHandler, discordCloseChannel)
+	}
+
 	logger.Info("service is running",
-		zap.String(
-			"discord user",
-			fmt.Sprintf("%s (#%s)", discordSession.State.User.String(), discordSession.State.User.ID),
-		),
 		zap.Int("port", config.Port),
 	)
 
@@ -128,11 +105,13 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()
 
-	err = discordSession.Close()
-	if err != nil {
-		logger.Error("unable to close discord session",
-			zap.Error(err),
-		)
+	// tell all sessions to close
+	for i := 0; i < cap(discordCloseChannel); i++ {
+		discordCloseChannel <- nil
+	}
+	// wait for all discord channels to close
+	for i := 0; i < cap(discordCloseChannel); i++ {
+		<-discordCloseChannel
 	}
 
 	err = amqpConnection.Close()
