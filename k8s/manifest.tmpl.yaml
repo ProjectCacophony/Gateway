@@ -5,7 +5,7 @@ metadata:
   namespace: cacophony
 type: Opaque
 stringData:
-  discordToken: "{{DISCORD_TOKEN}}"
+  discordTokens: "{{DISCORD_TOKENS}}"
   amqpDSN: "{{AMQP_DSN}}"
   loggingDiscordWebhook: "{{LOGGING_DISCORD_WEBHOOK}}"
 
@@ -46,11 +46,11 @@ spec:
             value: "{{PORT}}"
           - name: ENVIRONMENT
             value: "{{ENVIRONMENT}}"
-          - name: DISCORD_TOKEN
+          - name: DISCORD_TOKENS
             valueFrom:
               secretKeyRef:
                 name: gateway-secret
-                key: discordToken
+                key: discordTokens
           - name: AMQP_DSN
             valueFrom:
               secretKeyRef:
