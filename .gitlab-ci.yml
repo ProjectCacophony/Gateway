@@ -2,11 +2,13 @@ variables:
   DOCKER_IMAGE: "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}"
   DOCKER_IMAGE_PREV: "${CI_REGISTRY_IMAGE}:${CI_COMMIT_BEFORE_SHA}"
   DOCKER_IMAGE_HASH: "${CI_COMMIT_SHA}"
+  DOCKER_RELEASE_IMAGE: "${CI_REGISTRY_IMAGE}:latest"
 
 stages:
   - test
   - build
   - staging
+  - release
 
 Go Lint:
   stage: test
@@ -42,6 +44,24 @@ Docker Build:
       --tag "${DOCKER_IMAGE}"
       "${PWD}"
     - docker push "${DOCKER_IMAGE}"
+
+Publish Docker Latest Tag:
+  stage: build
+  image: docker:latest
+  cache: {}
+  only:
+    refs:
+      - master
+  before_script:
+    - >
+      docker login
+      --username "${CI_REGISTRY_USER}"
+      --password "${CI_REGISTRY_PASSWORD}"
+      "${CI_REGISTRY}"
+  script:
+    - docker pull "${DOCKER_IMAGE}"
+    - docker tag "${DOCKER_IMAGE}" "${DOCKER_RELEASE_IMAGE}"
+    - docker push "${DOCKER_RELEASE_IMAGE}"
 
 Deploy Staging:
   stage: staging
