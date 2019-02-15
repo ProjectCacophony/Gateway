@@ -45,7 +45,7 @@ Docker Build:
       "${PWD}"
     - docker push "${DOCKER_IMAGE}"
 
-Publish Docker Latest Tag:
+Docker Release:
   stage: build
   image: docker:latest
   cache: {}
