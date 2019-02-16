@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/go-redis/redis"
 	"gitlab.com/Cacophony/Gateway/pkg/publisher"
 	"gitlab.com/Cacophony/go-kit/events"
 	"go.uber.org/zap"
@@ -11,18 +12,21 @@ import (
 
 // EventHandler handles discord events and puts them into rabbitMQ
 type EventHandler struct {
-	logger    *zap.Logger
-	publisher *publisher.Publisher
+	logger      *zap.Logger
+	redisClient *redis.Client
+	publisher   *publisher.Publisher
 }
 
 // NewEventHandler creates a new EventHandler
 func NewEventHandler(
 	logger *zap.Logger,
+	redisClient *redis.Client,
 	publisher *publisher.Publisher,
 ) *EventHandler {
 	return &EventHandler{
-		logger:    logger,
-		publisher: publisher,
+		logger:      logger,
+		redisClient: redisClient,
+		publisher:   publisher,
 	}
 }
 
@@ -51,6 +55,23 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 		return
 	}
 
+	duplicate, err := eh.IsDuplicate(event.ID)
+	if err != nil {
+		eh.logger.Debug("unable to deduplicate event",
+			zap.Error(err),
+			zap.Any("event", eventItem),
+		)
+		return
+	}
+
+	if duplicate {
+		eh.logger.Debug("skipping event, as it is a duplicate",
+			zap.String("routing_key", routingKey),
+			zap.String("id", event.ID),
+		)
+		return
+	}
+
 	routingKey = events.GenerateRoutingKey(event.Type)
 
 	body, err := json.Marshal(event)
@@ -75,5 +96,6 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 
 	eh.logger.Debug("published event",
 		zap.String("routing_key", routingKey),
+		zap.String("id", event.ID),
 	)
 }

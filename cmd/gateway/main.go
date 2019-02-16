@@ -85,6 +85,7 @@ func main() {
 	// init event handler
 	eventHandler := handler.NewEventHandler(
 		logger.With(zap.String("feature", "EventHandler")),
+		redisClient,
 		publisherClient,
 	)
 
