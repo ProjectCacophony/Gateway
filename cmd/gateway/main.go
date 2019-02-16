@@ -68,7 +68,13 @@ func main() {
 	}
 
 	// init state
-	stateClient := state.NewSate(redisClient)
+	botIDs := make([]string, len(config.DiscordTokens))
+	var i int
+	for botID := range config.DiscordTokens {
+		botIDs[i] = botID
+		i++
+	}
+	stateClient := state.NewSate(redisClient, botIDs)
 
 	// init publisher
 	publisherClient, err := publisher.NewPublisher(
