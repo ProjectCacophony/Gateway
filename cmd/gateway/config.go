@@ -13,4 +13,6 @@ type config struct {
 	AMQPDSN               string              `envconfig:"AMQP_DSN" default:"amqp://guest:guest@localhost:5672/"`
 	LoggingDiscordWebhook string              `envconfig:"LOGGING_DISCORD_WEBHOOK"`
 	EventTTL              time.Duration       `envconfig:"EVENT_TTL" default:"10m"`
+	RedisAddress          string              `envconfig:"REDIS_ADDRESS" default:"localhost:6379"`
+	RedisPassword         string              `envconfig:"REDIS_PASSWORD"`
 }

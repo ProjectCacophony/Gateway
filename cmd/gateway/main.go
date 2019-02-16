@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/go-redis/redis"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
@@ -15,6 +16,7 @@ import (
 	"gitlab.com/Cacophony/Gateway/pkg/publisher"
 	"gitlab.com/Cacophony/go-kit/api"
 	"gitlab.com/Cacophony/go-kit/logging"
+	"gitlab.com/Cacophony/go-kit/state"
 	"go.uber.org/zap"
 )
 
@@ -45,6 +47,18 @@ func main() {
 	}
 	defer logger.Sync() // nolint: errcheck
 
+	// init redis
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     config.RedisAddress,
+		Password: config.RedisPassword,
+	})
+	_, err = redisClient.Ping().Result()
+	if err != nil {
+		logger.Fatal("unable to connect to Redis",
+			zap.Error(err),
+		)
+	}
+
 	// init AMQP session
 	amqpConnection, err := amqp.Dial(config.AMQPDSN)
 	if err != nil {
@@ -52,6 +66,9 @@ func main() {
 			zap.Error(err),
 		)
 	}
+
+	// init state
+	stateClient := state.NewSate(redisClient)
 
 	// init publisher
 	publisherClient, err := publisher.NewPublisher(
@@ -88,7 +105,13 @@ func main() {
 	// launch all sessions:
 	discordCloseChannel := make(chan interface{}, len(config.DiscordTokens))
 	for botID, token := range config.DiscordTokens {
-		NewSession(logger.With(zap.String("bot_id", botID)), token, eventHandler, discordCloseChannel)
+		NewSession(
+			logger.With(zap.String("bot_id", botID)),
+			token,
+			eventHandler,
+			stateClient,
+			discordCloseChannel,
+		)
 	}
 
 	logger.Info("service is running",

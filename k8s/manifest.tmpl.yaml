@@ -8,6 +8,7 @@ stringData:
   discordTokens: "{{DISCORD_TOKENS}}"
   amqpDSN: "{{AMQP_DSN}}"
   loggingDiscordWebhook: "{{LOGGING_DISCORD_WEBHOOK}}"
+  redisPassword: "{{REDIS_PASSWORD}}"
 
 
 ---
@@ -46,6 +47,8 @@ spec:
             value: "{{PORT}}"
           - name: ENVIRONMENT
             value: "{{ENVIRONMENT}}"
+          - name: REDIS_ADDRESS
+            value: "{{REDIS_ADDRESS}}"
           - name: DISCORD_TOKENS
             valueFrom:
               secretKeyRef:
@@ -61,6 +64,11 @@ spec:
               secretKeyRef:
                 name: gateway-secret
                 key: loggingDiscordWebhook
+          - name: REDIS_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: gateway-secret
+                key: redisPassword
 
 
 ---
