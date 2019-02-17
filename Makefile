@@ -20,6 +20,10 @@ clean:
 build:
 	go build -v $(BUILD_FLAGS) -o "$(BINARY)" $(SOURCE)
 
+build_windows:
+	export GOOS=windows
+	go build -v -o "bin/windows.$(GOARCH)/$(NAME).exe" $(SOURCE)
+
 lint:
 	goimports -d $(SOURCE_FOLDERS)
 	golangci-lint run --enable-all ./...
