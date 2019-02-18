@@ -1,12 +1,6 @@
 # golang image to build the service
 FROM golang:1.11-stretch as builder
 
-# install dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    make \
-    git \
-  && rm -rf /var/lib/apt/lists/*
-
 # workdir /src because we have to be out of go path to use go modules
 WORKDIR /src
 
