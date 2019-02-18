@@ -11,7 +11,6 @@ import (
 	"github.com/go-redis/redis"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/pkg/errors"
-	"github.com/streadway/amqp"
 	"gitlab.com/Cacophony/Gateway/pkg/handler"
 	"gitlab.com/Cacophony/Gateway/pkg/publisher"
 	"gitlab.com/Cacophony/go-kit/api"
@@ -59,14 +58,6 @@ func main() {
 		)
 	}
 
-	// init AMQP session
-	amqpConnection, err := amqp.Dial(config.AMQPDSN)
-	if err != nil {
-		logger.Fatal("unable to initialise AMQP session",
-			zap.Error(err),
-		)
-	}
-
 	// init state
 	botIDs := make([]string, len(config.DiscordTokens))
 	var i int
@@ -78,7 +69,8 @@ func main() {
 
 	// init publisher
 	publisherClient, err := publisher.NewPublisher(
-		amqpConnection,
+		logger,
+		config.AMQPDSN,
 		"cacophony",
 		config.EventTTL,
 	)
@@ -142,13 +134,6 @@ func main() {
 	// wait for all discord channels to close
 	for i := 0; i < cap(discordCloseChannel); i++ {
 		<-discordCloseChannel
-	}
-
-	err = amqpConnection.Close()
-	if err != nil {
-		logger.Error("unable to close AMQP session",
-			zap.Error(err),
-		)
 	}
 
 	err = httpServer.Shutdown(ctx)
