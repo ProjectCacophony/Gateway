@@ -1,8 +1,10 @@
+include:
+  - project: 'Cacophony/gitlab-ci'
+    ref: master
+    file: '/go-service.yml'
+
 variables:
-  DOCKER_IMAGE: "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}"
-  DOCKER_IMAGE_PREV: "${CI_REGISTRY_IMAGE}:${CI_COMMIT_BEFORE_SHA}"
-  DOCKER_IMAGE_HASH: "${CI_COMMIT_SHA}"
-  DOCKER_RELEASE_IMAGE: "${CI_REGISTRY_IMAGE}:latest"
+  DEPLOYMENT_NAME: "processor"
 
 stages:
   - test
@@ -10,53 +12,10 @@ stages:
   - staging
 
 Go Lint:
-  stage: test
-  image: golang:1.11
-  cache:
-    key: ${CI_COMMIT_REF_SLUG}
-    paths:
-      - /go/
-  before_script:
-    - go mod download
-    - go get -u golang.org/x/tools/cmd/goimports
-    - curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.13.2
-  script:
-    - make lint
+  extends: .Go Lint
 
 Docker Build:
-  stage: build
-  image: docker:latest
-  cache: {}
-  services:
-    - docker:dind
-  before_script:
-    - >
-      docker login
-      --username "${CI_REGISTRY_USER}"
-      --password "${CI_REGISTRY_PASSWORD}"
-      "${CI_REGISTRY}"
-  script:
-    - docker pull "${DOCKER_IMAGE_PREV}" || true
-    - >
-      docker build
-      --cache-from "${DOCKER_IMAGE_PREV}"
-      --tag "${DOCKER_IMAGE}"
-      "${PWD}"
-    - docker push "${DOCKER_IMAGE}"
-    - docker tag "${DOCKER_IMAGE}" "${DOCKER_RELEASE_IMAGE}"
-    - docker push "${DOCKER_RELEASE_IMAGE}"
+  extends: .Docker Build
 
 Deploy Staging:
-  stage: staging
-  image: "${RUNNER_DOCKER_IMAGE}"
-  cache: {}
-  only:
-    refs:
-      - master
-  script:
-    - k8s/render.sh
-    - kubectl apply -f k8s/manifest.yaml
-    - kubectl rollout status deployment.v1.apps/gateway
-  tags:
-    - k8s
-    - dev
+  extends: .Deploy Staging

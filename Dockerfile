@@ -10,12 +10,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # workdir /src because we have to be out of go path to use go modules
 WORKDIR /src
 
-# fetch dependencies in own step to support caching it
-COPY ./go.mod ./go.sum ./
-RUN go mod download
-
 # copy source code
 COPY ./ ./
+
+# change GOPATH to ./go as we copy the cache into there on CI
+# update PATH to include ./go/bin
+ENV GOPATH /src/go
+ENV PATH $PATH:/src/go/bin
+
+# ability to inject goproxy
+ARG GOPROXY
+
+# download deps
+RUN go mod download
 
 # build binary
 RUN make all
@@ -31,6 +38,9 @@ RUN apt-get update && TERM=linux DEBIAN_FRONTEND=noninteractive apt-get install 
 
 # copy binary from builder step
 COPY --from=builder /src/bin/linux.amd64 /
+
+# copy assets into image
+COPY ./assets ./assets
 
 # expose http server port
 #EXPOSE 8000
