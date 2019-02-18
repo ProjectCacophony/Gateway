@@ -4,7 +4,7 @@ include:
     file: '/go-service.yml'
 
 variables:
-  DEPLOYMENT_NAME: "processor"
+  DEPLOYMENT_NAME: "gateway"
 
 stages:
   - test

@@ -39,11 +39,8 @@ RUN apt-get update && TERM=linux DEBIAN_FRONTEND=noninteractive apt-get install 
 # copy binary from builder step
 COPY --from=builder /src/bin/linux.amd64 /
 
-# copy assets into image
-COPY ./assets ./assets
-
 # expose http server port
-#EXPOSE 8000
+EXPOSE 8000
 
 # switch to user without permissions
 USER nobody
