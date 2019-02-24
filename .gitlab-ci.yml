@@ -7,15 +7,18 @@ variables:
   DEPLOYMENT_NAME: "gateway"
 
 stages:
-  - test
-  - build
+  - prepare
+  - release
   - staging
 
 Go Lint:
-  extends: .Go Lint
+  extends: .Go Service - Go Lint
 
 Docker Build:
-  extends: .Docker Build
+  extends: .Go Service - Docker Build
+
+Docker Release:
+  extends: .Go Service - Docker Release
 
 Deploy Staging:
-  extends: .Deploy Staging
+  extends: .Go Service - Deploy Staging
