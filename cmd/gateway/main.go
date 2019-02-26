@@ -8,6 +8,8 @@ import (
 	"syscall"
 	"time"
 
+	"gitlab.com/Cacophony/Gateway/pkg/whitelist"
+
 	"github.com/go-redis/redis"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/pkg/errors"
@@ -58,6 +60,19 @@ func main() {
 		)
 	}
 
+	// init whitelist checker
+	checker := whitelist.NewChecker(
+		redisClient,
+		logger,
+		time.Minute,
+	)
+	err = checker.Start()
+	if err != nil {
+		logger.Fatal("unable to initialise whitelist checker",
+			zap.Error(err),
+		)
+	}
+
 	// init state
 	botIDs := make([]string, len(config.DiscordTokens))
 	var i int
@@ -85,6 +100,7 @@ func main() {
 		logger.With(zap.String("feature", "EventHandler")),
 		redisClient,
 		publisherClient,
+		checker,
 	)
 
 	// init http server

@@ -3,6 +3,8 @@ package handler
 import (
 	"encoding/json"
 
+	"gitlab.com/Cacophony/Gateway/pkg/whitelist"
+
 	"github.com/bwmarrin/discordgo"
 	"github.com/go-redis/redis"
 	"gitlab.com/Cacophony/Gateway/pkg/publisher"
@@ -15,6 +17,7 @@ type EventHandler struct {
 	logger      *zap.Logger
 	redisClient *redis.Client
 	publisher   *publisher.Publisher
+	checker     *whitelist.Checker
 }
 
 // NewEventHandler creates a new EventHandler
@@ -22,11 +25,13 @@ func NewEventHandler(
 	logger *zap.Logger,
 	redisClient *redis.Client,
 	publisher *publisher.Publisher,
+	checker *whitelist.Checker,
 ) *EventHandler {
 	return &EventHandler{
 		logger:      logger,
 		redisClient: redisClient,
 		publisher:   publisher,
+		checker:     checker,
 	}
 }
 
@@ -52,6 +57,14 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 	}
 
 	if event == nil {
+		return
+	}
+
+	if event.GuildID != "" && !eh.checker.IsWhitelisted(event.GuildID) || eh.checker.IsBlacklisted(event.GuildID) {
+		eh.logger.Debug("skipping event because guild is not whitelisted",
+			zap.String("type", string(event.Type)),
+			zap.String("guild_id", event.GuildID),
+		)
 		return
 	}
 

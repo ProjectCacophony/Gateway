@@ -17,6 +17,8 @@ github.com/getsentry/raven-go v0.2.0 h1:no+xWJRb5ZI7eE8TWgIq1jLulQiIoLG0IfYxv5JY
 github.com/getsentry/raven-go v0.2.0/go.mod h1:KungGk8q33+aIAZUIVWZDr2OfAEBsO49PX4NzFV5kcQ=
 github.com/go-chi/chi v4.0.1+incompatible h1:RSRC5qmFPtO90t7pTL0DBMNpZFsb/sHF3RXVlDgFisA=
 github.com/go-chi/chi v4.0.1+incompatible/go.mod h1:eB3wogJHnLi3x/kFX2A+IbTBlXxmMeXJVKy9tTv1XzQ=
+github.com/go-chi/chi v4.0.2+incompatible h1:maB6vn6FqCxrpz4FqWdh4+lwpyZIQS7YEAUcHlgXVRs=
+github.com/go-chi/chi v4.0.2+incompatible/go.mod h1:eB3wogJHnLi3x/kFX2A+IbTBlXxmMeXJVKy9tTv1XzQ=
 github.com/go-redis/redis v6.15.1+incompatible h1:BZ9s4/vHrIqwOb0OPtTQ5uABxETJ3NRuUNoSUurnkew=
 github.com/go-redis/redis v6.15.1+incompatible/go.mod h1:NAIEuMOZ/fxfXJIrKDQDz8wamY7mA7PouImQ2Jvg6kA=
 github.com/golang/protobuf v1.2.0 h1:P3YflyNX/ehuJFLhxviNdFxQPkGK5cDcApsge1SqnvM=
@@ -58,8 +60,8 @@ github.com/stretchr/objx v0.1.1/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+
 github.com/stretchr/testify v1.2.2/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXfy6kDkUVs=
 github.com/stretchr/testify v1.3.0 h1:TivCn/peBQ7UY8ooIcPgZFpTNSz0Q2U6UrFlUfqbe0Q=
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
-gitlab.com/Cacophony/go-kit v0.0.0-20190225180504-7dc2ac110ac4 h1:UXG8/95mFI/klU/Lbdgy/PUNfgfDwFGMaV2d2ZciA1w=
-gitlab.com/Cacophony/go-kit v0.0.0-20190225180504-7dc2ac110ac4/go.mod h1:ay/FcnvPAPY1sYX/ViISsrGjiZ87AIv4RcU2oct15Xs=
+gitlab.com/Cacophony/go-kit v0.0.0-20190226174049-91ea0537f5fa h1:aIAWYzFtm62/GLQAymPyIwf5+nP2ADSW6M9XWj+IIew=
+gitlab.com/Cacophony/go-kit v0.0.0-20190226174049-91ea0537f5fa/go.mod h1:ay/FcnvPAPY1sYX/ViISsrGjiZ87AIv4RcU2oct15Xs=
 go.uber.org/atomic v1.3.2 h1:2Oa65PReHzfn29GpvgsYwloV9AVFHPDk8tYxt2c2tr4=
 go.uber.org/atomic v1.3.2/go.mod h1:gD2HeocX3+yG+ygLZcrzQJaqmWj9AIm7n08wl/qW/PE=
 go.uber.org/multierr v1.1.0 h1:HoEmRHQPVSqub6w2z2d2EOVs2fjyFRGyofhKuyDq0QI=
