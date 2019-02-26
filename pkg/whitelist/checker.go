@@ -31,9 +31,6 @@ func NewChecker(
 		logger:   logger,
 		interval: interval,
 		enable:   enable,
-
-		whitelist: make(map[string]interface{}),
-		blacklist: make(map[string]interface{}),
 	}
 }
 
@@ -43,14 +40,14 @@ func (c *Checker) Start() error {
 	c.whitelistLock.Lock()
 	c.whitelist, err = c.get(whitelistKey)
 	c.whitelistLock.Unlock()
-	if err != nil {
+	if err != nil && err != redis.Nil {
 		return err
 	}
 
 	c.blacklistLock.Lock()
 	c.blacklist, err = c.get(blacklistKey)
 	c.blacklistLock.Unlock()
-	if err != nil {
+	if err != nil && err != redis.Nil {
 		return err
 	}
 
@@ -61,7 +58,7 @@ func (c *Checker) Start() error {
 			time.Sleep(c.interval)
 
 			whitelist, err = c.get(whitelistKey)
-			if err != nil {
+			if err != nil && err != redis.Nil {
 				c.logger.Error("failed to retrieve whitelist", zap.Error(err))
 			} else {
 				c.whitelistLock.Lock()
@@ -70,7 +67,7 @@ func (c *Checker) Start() error {
 			}
 
 			blacklist, err = c.get(blacklistKey)
-			if err != nil {
+			if err != nil && err != redis.Nil {
 				c.logger.Error("failed to retrieve blacklist", zap.Error(err))
 			} else {
 				c.blacklistLock.Lock()
@@ -93,6 +90,10 @@ func (c *Checker) IsWhitelisted(guildID string) bool {
 	c.whitelistLock.RLock()
 	defer c.whitelistLock.RUnlock()
 
+	if c.whitelist == nil {
+		return false
+	}
+
 	_, ok := c.whitelist[guildID]
 	return ok
 }
@@ -104,6 +105,10 @@ func (c *Checker) IsBlacklisted(guildID string) bool {
 
 	c.blacklistLock.RLock()
 	defer c.blacklistLock.RUnlock()
+
+	if c.blacklist == nil {
+		return false
+	}
 
 	_, ok := c.blacklist[guildID]
 	return ok
