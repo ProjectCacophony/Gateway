@@ -12,6 +12,7 @@ type Checker struct {
 	redis    *redis.Client
 	logger   *zap.Logger
 	interval time.Duration
+	enable   bool
 
 	whitelist     map[string]interface{}
 	whitelistLock sync.RWMutex
@@ -19,11 +20,17 @@ type Checker struct {
 	blacklistLock sync.RWMutex
 }
 
-func NewChecker(redis *redis.Client, logger *zap.Logger, interval time.Duration) *Checker {
+func NewChecker(
+	redis *redis.Client,
+	logger *zap.Logger,
+	interval time.Duration,
+	enable bool,
+) *Checker {
 	return &Checker{
 		redis:    redis,
 		logger:   logger,
 		interval: interval,
+		enable:   enable,
 
 		whitelist: make(map[string]interface{}),
 		blacklist: make(map[string]interface{}),
@@ -79,6 +86,10 @@ func (c *Checker) Start() error {
 }
 
 func (c *Checker) IsWhitelisted(guildID string) bool {
+	if !c.enable {
+		return true
+	}
+
 	c.whitelistLock.RLock()
 	defer c.whitelistLock.RUnlock()
 
@@ -87,6 +98,10 @@ func (c *Checker) IsWhitelisted(guildID string) bool {
 }
 
 func (c *Checker) IsBlacklisted(guildID string) bool {
+	if !c.enable {
+		return false
+	}
+
 	c.blacklistLock.RLock()
 	defer c.blacklistLock.RUnlock()
 

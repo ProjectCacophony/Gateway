@@ -49,6 +49,8 @@ spec:
             value: "{{ENVIRONMENT}}"
           - name: REDIS_ADDRESS
             value: "{{REDIS_ADDRESS}}"
+          - name: ENABLE_WHITELIST
+            value: "{{ENABLE_WHITELIST}}"
           - name: DISCORD_TOKENS
             valueFrom:
               secretKeyRef:

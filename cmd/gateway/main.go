@@ -65,6 +65,7 @@ func main() {
 		redisClient,
 		logger,
 		time.Minute,
+		config.EnableWhitelist,
 	)
 	err = checker.Start()
 	if err != nil {
@@ -131,6 +132,7 @@ func main() {
 
 	logger.Info("service is running",
 		zap.Int("port", config.Port),
+		zap.Bool("whitelist_enabled", config.EnableWhitelist),
 	)
 
 	// wait for CTRL+C to stop the service

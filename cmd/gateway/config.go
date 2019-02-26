@@ -15,4 +15,5 @@ type config struct {
 	EventTTL              time.Duration       `envconfig:"EVENT_TTL" default:"10m"`
 	RedisAddress          string              `envconfig:"REDIS_ADDRESS" default:"localhost:6379"`
 	RedisPassword         string              `envconfig:"REDIS_PASSWORD"`
+	EnableWhitelist       bool                `envconfig:"ENABLE_WHITELIST" default:"false"`
 }
