@@ -1,5 +1,5 @@
 # golang image to build the service
-FROM golang:1.11-stretch as builder
+FROM golang:1.12-stretch as builder
 
 # workdir /src because we have to be out of go path to use go modules
 WORKDIR /src
