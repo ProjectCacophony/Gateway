@@ -7,7 +7,7 @@ require (
 	github.com/kelseyhightower/envconfig v1.3.0
 	github.com/pkg/errors v0.8.1
 	github.com/streadway/amqp v0.0.0-20181205114330-a314942b2fd9
-	gitlab.com/Cacophony/go-kit v0.0.0-20190226174049-91ea0537f5fa
+	gitlab.com/Cacophony/go-kit v0.0.0-20190228192249-1f7eaff57ea7
 	go.uber.org/zap v1.9.1
 	golang.org/x/crypto v0.0.0-20190225124518-7f87c0fbb88b // indirect
 	golang.org/x/net v0.0.0-20190225153610-fe579d43d832 // indirect

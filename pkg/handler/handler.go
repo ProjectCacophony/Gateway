@@ -44,7 +44,7 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 		return
 	}
 
-	event, err := events.GenerateEventFromDiscordgoEvent(
+	event, expiration, err := events.GenerateEventFromDiscordgoEvent(
 		session.State.User.ID,
 		eventItem,
 	)
@@ -68,7 +68,7 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 		return
 	}
 
-	duplicate, err := eh.IsDuplicate(event.ID)
+	duplicate, err := eh.IsDuplicate(event.ID, expiration)
 	if err != nil {
 		eh.logger.Debug("unable to deduplicate event",
 			zap.Error(err),
