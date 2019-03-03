@@ -8,6 +8,8 @@ import (
 	"syscall"
 	"time"
 
+	"gitlab.com/Cacophony/go-kit/errortracking"
+
 	"gitlab.com/Cacophony/Gateway/pkg/whitelist"
 
 	"github.com/go-redis/redis"
@@ -33,6 +35,8 @@ func main() {
 	if err != nil {
 		panic(errors.Wrap(err, "unable to load configuration"))
 	}
+	config.ErrorTracking.Version = config.Hash
+	config.ErrorTracking.Environment = config.ClusterEnvironment
 
 	// init logger
 	logger, err := logging.NewLogger(
@@ -47,6 +51,14 @@ func main() {
 		panic(errors.Wrap(err, "unable to initialise logger"))
 	}
 	defer logger.Sync() // nolint: errcheck
+
+	// init raven
+	err = errortracking.Init(&config.ErrorTracking)
+	if err != nil {
+		logger.Error("unable to initialise errortracking",
+			zap.Error(err),
+		)
+	}
 
 	// init redis
 	redisClient := redis.NewClient(&redis.Options{

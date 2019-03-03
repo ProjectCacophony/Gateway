@@ -4,6 +4,8 @@ import (
 	"sync"
 	"time"
 
+	raven "github.com/getsentry/raven-go"
+
 	"github.com/go-redis/redis"
 	"go.uber.org/zap"
 )
@@ -59,6 +61,7 @@ func (c *Checker) Start() error {
 
 			whitelist, err = c.get(whitelistKey)
 			if err != nil && err != redis.Nil {
+				raven.CaptureError(err, nil)
 				c.logger.Error("failed to retrieve whitelist", zap.Error(err))
 			} else {
 				c.whitelistLock.Lock()
@@ -68,6 +71,7 @@ func (c *Checker) Start() error {
 
 			blacklist, err = c.get(blacklistKey)
 			if err != nil && err != redis.Nil {
+				raven.CaptureError(err, nil)
 				c.logger.Error("failed to retrieve blacklist", zap.Error(err))
 			} else {
 				c.blacklistLock.Lock()

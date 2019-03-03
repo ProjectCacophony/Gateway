@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 
+	raven "github.com/getsentry/raven-go"
+
 	"github.com/bwmarrin/discordgo"
 	"gitlab.com/Cacophony/Gateway/pkg/handler"
 	"gitlab.com/Cacophony/go-kit/logging"
@@ -35,6 +37,7 @@ func NewSession(
 	discordSession.AddHandler(func(session *discordgo.Session, eventItem interface{}) {
 		err := state.SharedStateEventHandler(session, eventItem)
 		if err != nil {
+			raven.CaptureError(err, nil)
 			logger.Error("state client failed to handle event", zap.Error(err))
 		}
 	})

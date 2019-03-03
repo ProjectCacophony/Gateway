@@ -9,6 +9,7 @@ stringData:
   amqpDSN: "{{AMQP_DSN}}"
   loggingDiscordWebhook: "{{LOGGING_DISCORD_WEBHOOK}}"
   redisPassword: "{{REDIS_PASSWORD}}"
+  errorTrackingRavenDSN: "{{ERRORTRACKING_RAVEN_DSN}}"
 
 
 ---
@@ -71,6 +72,11 @@ spec:
               secretKeyRef:
                 name: gateway-secret
                 key: redisPassword
+          - name: ERRORTRACKING_RAVEN_DSN
+            valueFrom:
+              secretKeyRef:
+                name: gateway-secret
+                key: errorTrackingRavenDSN
 
 
 ---

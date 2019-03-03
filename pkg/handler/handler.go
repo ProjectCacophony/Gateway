@@ -3,6 +3,8 @@ package handler
 import (
 	"encoding/json"
 
+	raven "github.com/getsentry/raven-go"
+
 	"gitlab.com/Cacophony/Gateway/pkg/whitelist"
 
 	"github.com/bwmarrin/discordgo"
@@ -49,6 +51,7 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 		eventItem,
 	)
 	if err != nil {
+		raven.CaptureError(err, nil)
 		eh.logger.Debug("unable to generate event",
 			zap.Error(err),
 			zap.Any("event", eventItem),
@@ -60,7 +63,9 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 		return
 	}
 
-	if event.GuildID != "" && !eh.checker.IsWhitelisted(event.GuildID) || eh.checker.IsBlacklisted(event.GuildID) {
+	if event.GuildID != "" &&
+		(!eh.checker.IsWhitelisted(event.GuildID) ||
+			eh.checker.IsBlacklisted(event.GuildID)) {
 		eh.logger.Debug("skipping event because guild is not whitelisted",
 			zap.String("type", string(event.Type)),
 			zap.String("guild_id", event.GuildID),
@@ -70,6 +75,7 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 
 	duplicate, err := eh.IsDuplicate(event.ID, expiration)
 	if err != nil {
+		raven.CaptureError(err, nil)
 		eh.logger.Debug("unable to deduplicate event",
 			zap.Error(err),
 			zap.Any("event", eventItem),
@@ -89,6 +95,7 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 
 	body, err := json.Marshal(event)
 	if err != nil {
+		raven.CaptureError(err, nil)
 		eh.logger.Error("unable to marshal event",
 			zap.Error(err),
 		)
@@ -100,6 +107,7 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 		body,
 	)
 	if err != nil {
+		raven.CaptureError(err, nil)
 		eh.logger.Error("unable to publish event",
 			zap.Error(err),
 			zap.String("routing_key", routingKey),

@@ -10,6 +10,7 @@
 # REDIS_ADDRESS
 # REDIS_PASSWORD
 # ENABLE_WHITELIST
+# ERRORTRACKING_RAVEN_DSN
 
 template="k8s/manifest.tmpl.yaml"
 target="k8s/manifest.yaml"
@@ -24,3 +25,4 @@ sed -i -e "s|{{DOCKER_IMAGE_HASH}}|$DOCKER_IMAGE_HASH|g" "$target"
 sed -i -e "s|{{REDIS_ADDRESS}}|$REDIS_ADDRESS|g" "$target"
 sed -i -e "s|{{REDIS_PASSWORD}}|$REDIS_PASSWORD|g" "$target"
 sed -i -e "s|{{ENABLE_WHITELIST}}|$ENABLE_WHITELIST|g" "$target"
+sed -i -e "s|{{ERRORTRACKING_RAVEN_DSN}}|$ERRORTRACKING_RAVEN_DSN|g" "$target"
