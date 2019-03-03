@@ -52,6 +52,10 @@ spec:
             value: "{{REDIS_ADDRESS}}"
           - name: ENABLE_WHITELIST
             value: "{{ENABLE_WHITELIST}}"
+          - name: HASH
+            value: "{{HASH}}"
+          - name: CLUSTER_ENVIRONMENT
+            value: "{{CLUSTER_ENVIRONMENT}}"
           - name: DISCORD_TOKENS
             valueFrom:
               secretKeyRef:
