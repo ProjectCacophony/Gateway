@@ -73,7 +73,7 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 		return
 	}
 
-	duplicate, err := eh.IsDuplicate(event.ID, expiration)
+	duplicate, err := eh.IsDuplicate(event.CacheKey, expiration)
 	if err != nil {
 		raven.CaptureError(err, nil)
 		eh.logger.Debug("unable to deduplicate event",
