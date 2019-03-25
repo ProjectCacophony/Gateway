@@ -10,7 +10,7 @@ require (
 	github.com/onsi/ginkgo v1.8.0 // indirect
 	github.com/pkg/errors v0.8.1
 	github.com/streadway/amqp v0.0.0-20181205114330-a314942b2fd9
-	gitlab.com/Cacophony/go-kit v0.0.0-20190308160249-fd77ad76f306
+	gitlab.com/Cacophony/go-kit v0.0.0-20190325072735-580741c100dd
 	go.uber.org/zap v1.9.1
 	golang.org/x/crypto v0.0.0-20190228161510-8dd112bcdc25 // indirect
 	golang.org/x/net v0.0.0-20190301231341-16b79f2e4e95 // indirect
