@@ -11,25 +11,32 @@ variables:
 
 stages:
   - prepare
+  - build
   - release
   - staging
 
 Go Lint:
+  stage: prepare
   extends: .Go Service - Go Lint
 
 Docker Build:
+  stage: build
   extends: .Go Service - Docker Build
 
 Docker Release:
+  stage: release
   extends: .Go Service - Docker Release
 
-Deploy Staging:
-  extends: .Go Service - Deploy Staging
-
 Sentry Release:
+  stage: release
   extends: .Sentry - Sentry Release
 
-Sentry Deploy Staging:
+Deploy Staging:
+  stage: staging
+  extends: .Go Service - Deploy Staging
+
+Sentry Staging:
+  stage: staging
   variables:
     SENTRY_ENV: "staging"
-  extends: .Sentry - Sentry Deploy Staging
+  extends: .Sentry - Sentry Deploy
