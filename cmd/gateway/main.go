@@ -8,6 +8,8 @@ import (
 	"syscall"
 	"time"
 
+	"gitlab.com/Cacophony/go-kit/amqp"
+
 	"gitlab.com/Cacophony/go-kit/errortracking"
 
 	"gitlab.com/Cacophony/Gateway/pkg/whitelist"
@@ -16,7 +18,6 @@ import (
 	"github.com/kelseyhightower/envconfig"
 	"github.com/pkg/errors"
 	"gitlab.com/Cacophony/Gateway/pkg/handler"
-	"gitlab.com/Cacophony/Gateway/pkg/publisher"
 	"gitlab.com/Cacophony/go-kit/api"
 	"gitlab.com/Cacophony/go-kit/logging"
 	"gitlab.com/Cacophony/go-kit/state"
@@ -96,7 +97,7 @@ func main() {
 	stateClient := state.NewSate(redisClient, botIDs)
 
 	// init publisher
-	publisherClient, err := publisher.NewPublisher(
+	publisherClient, err := amqp.NewPublisher(
 		logger,
 		config.AMQPDSN,
 		"cacophony",

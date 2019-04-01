@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-
 	raven "github.com/getsentry/raven-go"
 
 	"github.com/bwmarrin/discordgo"
@@ -50,12 +48,7 @@ func NewSession(
 		)
 	}
 
-	logger.Info("connected Bot to Discord Gateway",
-		zap.String(
-			"discord user",
-			fmt.Sprintf("%s (#%s)", discordSession.State.User.String(), discordSession.State.User.ID),
-		),
-	)
+	logger.Info("connected Bot to Discord Gateway")
 
 	go func() {
 		<-closeChannel

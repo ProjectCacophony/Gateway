@@ -3,13 +3,11 @@ package handler
 import (
 	"encoding/json"
 
-	raven "github.com/getsentry/raven-go"
-
-	"gitlab.com/Cacophony/Gateway/pkg/whitelist"
-
 	"github.com/bwmarrin/discordgo"
+	raven "github.com/getsentry/raven-go"
 	"github.com/go-redis/redis"
-	"gitlab.com/Cacophony/Gateway/pkg/publisher"
+	"gitlab.com/Cacophony/Gateway/pkg/whitelist"
+	"gitlab.com/Cacophony/go-kit/amqp"
 	"gitlab.com/Cacophony/go-kit/events"
 	"go.uber.org/zap"
 )
@@ -18,7 +16,7 @@ import (
 type EventHandler struct {
 	logger      *zap.Logger
 	redisClient *redis.Client
-	publisher   *publisher.Publisher
+	publisher   *amqp.Publisher
 	checker     *whitelist.Checker
 }
 
@@ -26,7 +24,7 @@ type EventHandler struct {
 func NewEventHandler(
 	logger *zap.Logger,
 	redisClient *redis.Client,
-	publisher *publisher.Publisher,
+	publisher *amqp.Publisher,
 	checker *whitelist.Checker,
 ) *EventHandler {
 	return &EventHandler{
