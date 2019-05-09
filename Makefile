@@ -25,6 +25,7 @@ build_windows:
 	go build -v -o "bin/windows.$(GOARCH)/$(NAME).exe" $(SOURCE)
 
 lint:
+	goimports -d $(SOURCE_FOLDERS)
 	golangci-lint run --deadline=30m --disable-all \
 	--enable=govet \
 	--enable=staticcheck \
