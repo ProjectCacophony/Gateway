@@ -51,7 +51,7 @@ func main() {
 	if err != nil {
 		panic(errors.Wrap(err, "unable to initialise logger"))
 	}
-	defer logger.Sync() // nolint: errcheck
+	defer logger.Sync()
 
 	// init raven
 	err = errortracking.Init(&config.ErrorTracking)
