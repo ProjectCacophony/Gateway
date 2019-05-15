@@ -8,7 +8,7 @@ import (
 	"syscall"
 	"time"
 
-	"gitlab.com/Cacophony/go-kit/amqp"
+	"gitlab.com/Cacophony/go-kit/events"
 
 	"gitlab.com/Cacophony/go-kit/errortracking"
 
@@ -97,11 +97,8 @@ func main() {
 	stateClient := state.NewSate(redisClient, botIDs)
 
 	// init publisher
-	publisherClient, err := amqp.NewPublisher(
-		logger,
+	publisher, err := events.NewPublisher(
 		config.AMQPDSN,
-		"cacophony",
-		config.EventTTL,
 	)
 	if err != nil {
 		logger.Fatal("unable to initialise Publisher",
@@ -113,7 +110,7 @@ func main() {
 	eventHandler := handler.NewEventHandler(
 		logger.With(zap.String("feature", "EventHandler")),
 		redisClient,
-		publisherClient,
+		publisher,
 		checker,
 	)
 

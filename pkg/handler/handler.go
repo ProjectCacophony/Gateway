@@ -1,13 +1,12 @@
 package handler
 
 import (
-	"encoding/json"
+	"context"
 
 	"github.com/bwmarrin/discordgo"
-	raven "github.com/getsentry/raven-go"
+	"github.com/getsentry/raven-go"
 	"github.com/go-redis/redis"
 	"gitlab.com/Cacophony/Gateway/pkg/whitelist"
-	"gitlab.com/Cacophony/go-kit/amqp"
 	"gitlab.com/Cacophony/go-kit/events"
 	"go.uber.org/zap"
 )
@@ -16,7 +15,7 @@ import (
 type EventHandler struct {
 	logger      *zap.Logger
 	redisClient *redis.Client
-	publisher   *amqp.Publisher
+	publisher   *events.Publisher
 	checker     *whitelist.Checker
 }
 
@@ -24,7 +23,7 @@ type EventHandler struct {
 func NewEventHandler(
 	logger *zap.Logger,
 	redisClient *redis.Client,
-	publisher *amqp.Publisher,
+	publisher *events.Publisher,
 	checker *whitelist.Checker,
 ) *EventHandler {
 	return &EventHandler{
@@ -38,7 +37,6 @@ func NewEventHandler(
 // OnDiscordEvent receives discord events
 func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem interface{}) {
 	var err error
-	var routingKey string
 
 	if session.State == nil || session.State.User == nil {
 		return
@@ -61,20 +59,25 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 		return
 	}
 
+	l := eh.logger.With(
+		zap.String("event_id", event.ID),
+		zap.String("event_type", string(event.Type)),
+		zap.String("event_guild_id", event.GuildID),
+		zap.String("event_user_id", event.UserID),
+		zap.String("event_bot_user_id", event.BotUserID),
+	)
+
 	if event.GuildID != "" &&
 		(!eh.checker.IsWhitelisted(event.GuildID) ||
 			eh.checker.IsBlacklisted(event.GuildID)) {
-		eh.logger.Debug("skipping event because guild is not whitelisted",
-			zap.String("type", string(event.Type)),
-			zap.String("guild_id", event.GuildID),
-		)
+		l.Debug("skipping event because guild is not whitelisted")
 		return
 	}
 
 	duplicate, err := eh.IsDuplicate(event.CacheKey, expiration)
 	if err != nil {
 		raven.CaptureError(err, nil)
-		eh.logger.Debug("unable to deduplicate event",
+		l.Debug("unable to deduplicate event",
 			zap.Error(err),
 			zap.Any("event", eventItem),
 		)
@@ -82,39 +85,21 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 	}
 
 	if duplicate {
-		eh.logger.Debug("skipping event, as it is a duplicate",
-			zap.String("routing_key", routingKey),
-			zap.String("id", event.ID),
-		)
-		return
-	}
-
-	routingKey = events.GenerateRoutingKey(event.Type)
-
-	body, err := json.Marshal(event)
-	if err != nil {
-		raven.CaptureError(err, nil)
-		eh.logger.Error("unable to marshal event",
-			zap.Error(err),
-		)
+		l.Debug("skipping event, as it is a duplicate")
 		return
 	}
 
 	err = eh.publisher.Publish(
-		routingKey,
-		body,
+		context.TODO(),
+		event,
 	)
 	if err != nil {
 		raven.CaptureError(err, nil)
-		eh.logger.Error("unable to publish event",
+		l.Error("unable to publish event",
 			zap.Error(err),
-			zap.String("routing_key", routingKey),
 		)
 		return
 	}
 
-	eh.logger.Debug("published event",
-		zap.String("routing_key", routingKey),
-		zap.String("id", event.ID),
-	)
+	eh.logger.Debug("published event")
 }
