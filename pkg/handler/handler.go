@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/getsentry/raven-go"
+	raven "github.com/getsentry/raven-go"
 	"github.com/go-redis/redis"
 	"gitlab.com/Cacophony/Gateway/pkg/whitelist"
 	"gitlab.com/Cacophony/go-kit/events"
