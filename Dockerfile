@@ -10,9 +10,6 @@ RUN apt-get update && TERM=linux DEBIAN_FRONTEND=noninteractive apt-get install 
 # copy binary into image
 COPY ./bin/linux.amd64/gateway /gateway
 
-# copy assets into image
-COPY ./assets ./assets
-
 # expose http server port
 EXPOSE 8000
 
