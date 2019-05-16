@@ -19,6 +19,10 @@ Go Lint:
   stage: prepare
   extends: .Go Service - Go Lint
 
+Go Build:
+  stage: prepare
+  extends: .Go Service - Binary Build
+
 Docker Build:
   stage: build
   extends: .Go Service - Docker Build
@@ -37,6 +41,6 @@ Deploy Staging:
 
 Sentry Staging:
   stage: staging
+  extends: .Sentry - Sentry Deploy
   variables:
     SENTRY_ENV: "staging"
-  extends: .Sentry - Sentry Deploy
