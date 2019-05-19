@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"gitlab.com/Cacophony/go-kit/discord"
 	"gitlab.com/Cacophony/go-kit/events"
 
 	"gitlab.com/Cacophony/go-kit/errortracking"
@@ -38,6 +39,8 @@ func main() {
 	}
 	config.ErrorTracking.Version = config.Hash
 	config.ErrorTracking.Environment = config.ClusterEnvironment
+
+	discord.SetAPIBase(config.DiscordAPIBase)
 
 	// init logger
 	logger, err := logging.NewLogger(
@@ -98,7 +101,7 @@ func main() {
 
 	// init publisher
 	publisher, err := events.NewPublisher(
-		config.AMQPDSN,
+		config.AMQPDSN, nil,
 	)
 	if err != nil {
 		logger.Fatal("unable to initialise Publisher",

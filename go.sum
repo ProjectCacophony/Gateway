@@ -259,8 +259,8 @@ github.com/uber/jaeger-lib v1.5.0/go.mod h1:ComeNDZlWwrWnDv8aPp0Ba6+uUTzImX/Aaua
 github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c/go.mod h1:lB8K/P019DLNhemzwFU4jHLhdvlE6uDZjXFejJXr49I=
 github.com/xdg/stringprep v1.0.0/go.mod h1:Jhud4/sHMO4oL310DaZAKk9ZaJ08SJfe+sJh0HrGL1Y=
 github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2/go.mod h1:UETIi67q53MR2AWcXfiuqkDkRtnGDLqkBTpCHuJHxtU=
-gitlab.com/Cacophony/go-kit v0.0.0-20190518082629-521ea92f8a0f h1:S+NvY4DD9TfPYI7BgFf2143FTzfrYvzgyf4JyHzVK7M=
-gitlab.com/Cacophony/go-kit v0.0.0-20190518082629-521ea92f8a0f/go.mod h1:qS9LtqTOTviteGNZXp444/iT6UdzXQX/uglyrwrVhe8=
+gitlab.com/Cacophony/go-kit v0.0.0-20190519104412-47a2d7a14853 h1:zfYCW1vDMiVd6PbDxxqZcMSLu5OgBsyj3WQKm0euU6Q=
+gitlab.com/Cacophony/go-kit v0.0.0-20190519104412-47a2d7a14853/go.mod h1:qS9LtqTOTviteGNZXp444/iT6UdzXQX/uglyrwrVhe8=
 go.etcd.io/bbolt v1.3.2/go.mod h1:IbVyRI1SCnLcuJnV2u8VeU0CEYM7e686BmAb1XKL+uU=
 go.etcd.io/etcd v3.3.12+incompatible/go.mod h1:yaeTdrJi5lOmYerz05bd8+V7KubZs8YSFZfzsF9A6aI=
 go.mongodb.org/mongo-driver v1.0.1/go.mod h1:u7ryQJ+DOzQmeO7zB6MHyr8jkEQvC8vH7qLUO4lqsUM=

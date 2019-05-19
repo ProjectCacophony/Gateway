@@ -10,6 +10,7 @@ stringData:
   loggingDiscordWebhook: "{{LOGGING_DISCORD_WEBHOOK}}"
   redisPassword: "{{REDIS_PASSWORD}}"
   errorTrackingRavenDSN: "{{ERRORTRACKING_RAVEN_DSN}}"
+  discordAPIBase: "{{DISCORD_API_BASE}}"
 
 
 ---
@@ -81,6 +82,11 @@ spec:
               secretKeyRef:
                 name: gateway-secret
                 key: errorTrackingRavenDSN
+          - name: DISCORD_API_BASE
+            valueFrom:
+              secretKeyRef:
+                name: gateway-secret
+                key: discordAPIBase
 
 
 ---

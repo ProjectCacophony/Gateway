@@ -21,4 +21,5 @@ type config struct {
 	RedisPassword         string               `envconfig:"REDIS_PASSWORD"`
 	EnableWhitelist       bool                 `envconfig:"ENABLE_WHITELIST" default:"false"`
 	ErrorTracking         errortracking.Config `envconfig:"ERRORTRACKING"`
+	DiscordAPIBase        string               `envconfig:"DISCORD_API_BASE"`
 }
