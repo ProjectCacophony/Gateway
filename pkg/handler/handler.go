@@ -89,12 +89,17 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 		return
 	}
 
-	err = eh.publisher.Publish(
+	err, recoverable := eh.publisher.Publish(
 		context.TODO(),
 		event,
 	)
 	if err != nil {
 		raven.CaptureError(err, nil)
+		if !recoverable {
+			l.Fatal("unrecoverable publishing error, shutting down",
+				zap.Error(err),
+			)
+		}
 		l.Error("unable to publish event",
 			zap.Error(err),
 		)
