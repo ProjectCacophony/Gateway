@@ -97,7 +97,7 @@ func main() {
 		botIDs[i] = botID
 		i++
 	}
-	stateClient := state.NewSate(redisClient, botIDs)
+	stateClient := state.NewSate(redisClient, nil, botIDs)
 
 	// init publisher
 	publisher, err := events.NewPublisher(
