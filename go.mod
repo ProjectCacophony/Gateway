@@ -1,11 +1,11 @@
 module gitlab.com/Cacophony/Gateway
 
 require (
-	github.com/bwmarrin/discordgo v0.19.0
+	github.com/bwmarrin/discordgo v0.16.1-0.20190608205439-347a4f69b0b5
 	github.com/getsentry/raven-go v0.2.0
 	github.com/go-redis/redis v6.15.2+incompatible
-	github.com/kelseyhightower/envconfig v1.3.0
+	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/pkg/errors v0.8.1
-	gitlab.com/Cacophony/go-kit v0.0.0-20190601153250-b6ddc0d5a019
+	gitlab.com/Cacophony/go-kit v0.0.0-20190609070925-5da7f126521c
 	go.uber.org/zap v1.10.0
 )
