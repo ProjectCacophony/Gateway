@@ -95,7 +95,7 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 		err = eh.state.SharedStateEventHandler(session, eventItem)
 		if err != nil {
 			raven.CaptureError(err, nil)
-			eh.logger.Error("state client failed to handle event", zap.Error(err))
+			l.Error("state client failed to handle event", zap.Error(err))
 		}
 		return
 	}
@@ -107,7 +107,7 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 	err = eh.state.SharedStateEventHandler(session, eventItem)
 	if err != nil {
 		raven.CaptureError(err, nil)
-		eh.logger.Error("state client failed to handle event", zap.Error(err))
+		l.Error("state client failed to handle event", zap.Error(err))
 	}
 
 	err, recoverable := eh.publisher.Publish(
