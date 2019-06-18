@@ -41,7 +41,7 @@ func requestGuildMembers(
 
 		l := logger.With(
 			zap.String("guild_id", guildID),
-			zap.String("bot_id", guildID),
+			zap.String("bot_id", session.State.User.ID),
 		)
 
 		l.Info("requesting guild members")
