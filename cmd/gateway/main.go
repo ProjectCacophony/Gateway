@@ -115,6 +115,7 @@ func main() {
 		redisClient,
 		publisher,
 		checker,
+		stateClient,
 	)
 
 	// init http server

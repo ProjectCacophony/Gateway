@@ -8,6 +8,7 @@ import (
 	"github.com/go-redis/redis"
 	"gitlab.com/Cacophony/Gateway/pkg/whitelist"
 	"gitlab.com/Cacophony/go-kit/events"
+	"gitlab.com/Cacophony/go-kit/state"
 	"go.uber.org/zap"
 )
 
@@ -17,6 +18,7 @@ type EventHandler struct {
 	redisClient *redis.Client
 	publisher   *events.Publisher
 	checker     *whitelist.Checker
+	state       *state.State
 }
 
 // NewEventHandler creates a new EventHandler
@@ -25,12 +27,14 @@ func NewEventHandler(
 	redisClient *redis.Client,
 	publisher *events.Publisher,
 	checker *whitelist.Checker,
+	state *state.State,
 ) *EventHandler {
 	return &EventHandler{
 		logger:      logger,
 		redisClient: redisClient,
 		publisher:   publisher,
 		checker:     checker,
+		state:       state,
 	}
 }
 
@@ -52,6 +56,12 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 			zap.Error(err),
 			zap.Any("event", eventItem),
 		)
+
+		err = eh.state.SharedStateEventHandler(session, eventItem)
+		if err != nil {
+			raven.CaptureError(err, nil)
+			eh.logger.Error("state client failed to handle event", zap.Error(err))
+		}
 		return
 	}
 
@@ -81,7 +91,19 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 			zap.Error(err),
 			zap.Any("event", eventItem),
 		)
+
+		err = eh.state.SharedStateEventHandler(session, eventItem)
+		if err != nil {
+			raven.CaptureError(err, nil)
+			eh.logger.Error("state client failed to handle event", zap.Error(err))
+		}
 		return
+	}
+
+	err = eh.state.SharedStateEventHandler(session, eventItem)
+	if err != nil {
+		raven.CaptureError(err, nil)
+		eh.logger.Error("state client failed to handle event", zap.Error(err))
 	}
 
 	if duplicate {
