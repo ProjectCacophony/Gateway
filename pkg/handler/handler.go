@@ -99,16 +99,15 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 		}
 		return
 	}
+	if duplicate {
+		l.Debug("skipping event, as it is a duplicate")
+		return
+	}
 
 	err = eh.state.SharedStateEventHandler(session, eventItem)
 	if err != nil {
 		raven.CaptureError(err, nil)
 		eh.logger.Error("state client failed to handle event", zap.Error(err))
-	}
-
-	if duplicate {
-		l.Debug("skipping event, as it is a duplicate")
-		return
 	}
 
 	err, recoverable := eh.publisher.Publish(
