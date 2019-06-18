@@ -139,6 +139,7 @@ func main() {
 			token,
 			eventHandler,
 			stateClient,
+			checker,
 			discordCloseChannel,
 		)
 	}

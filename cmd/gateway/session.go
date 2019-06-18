@@ -1,9 +1,12 @@
 package main
 
 import (
+	"time"
+
 	"github.com/bwmarrin/discordgo"
 	raven "github.com/getsentry/raven-go"
 	"gitlab.com/Cacophony/Gateway/pkg/handler"
+	"gitlab.com/Cacophony/Gateway/pkg/whitelist"
 	"gitlab.com/Cacophony/go-kit/logging"
 	"gitlab.com/Cacophony/go-kit/state"
 	"go.uber.org/zap"
@@ -14,6 +17,7 @@ func NewSession(
 	token string,
 	eventHandler *handler.EventHandler,
 	state *state.State,
+	checker *whitelist.Checker,
 	closeChannel chan interface{},
 ) {
 	// init discordgo session
@@ -49,6 +53,17 @@ func NewSession(
 	}
 
 	logger.Info("connected Bot to Discord Gateway")
+
+	go func() {
+		time.Sleep(5 * time.Minute)
+
+		requestGuildMembers(
+			discordSession,
+			state,
+			checker,
+			logger.With(zap.String("feature", "members")),
+		)
+	}()
 
 	go func() {
 		<-closeChannel

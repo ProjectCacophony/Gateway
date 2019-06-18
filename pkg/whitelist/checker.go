@@ -16,10 +16,12 @@ type Checker struct {
 	interval time.Duration
 	enable   bool
 
-	whitelist     map[string]interface{}
-	whitelistLock sync.RWMutex
-	blacklist     map[string]interface{}
-	blacklistLock sync.RWMutex
+	whitelist      map[string]interface{}
+	whitelistSlice []string
+	whitelistLock  sync.RWMutex
+	blacklist      map[string]interface{}
+	blacklistSlice []string
+	blacklistLock  sync.RWMutex
 }
 
 func NewChecker(
@@ -40,14 +42,14 @@ func (c *Checker) Start() error {
 	var err error
 
 	c.whitelistLock.Lock()
-	c.whitelist, err = c.get(whitelistKey)
+	c.whitelistSlice, c.whitelist, err = c.get(whitelistKey)
 	c.whitelistLock.Unlock()
 	if err != nil && err != redis.Nil {
 		return err
 	}
 
 	c.blacklistLock.Lock()
-	c.blacklist, err = c.get(blacklistKey)
+	c.blacklistSlice, c.blacklist, err = c.get(blacklistKey)
 	c.blacklistLock.Unlock()
 	if err != nil && err != redis.Nil {
 		return err
@@ -56,26 +58,29 @@ func (c *Checker) Start() error {
 	go func() {
 		var err error
 		var whitelist, blacklist map[string]interface{}
+		var whitelistSlice, blacklistSlice []string
 		for {
 			time.Sleep(c.interval)
 
-			whitelist, err = c.get(whitelistKey)
+			whitelistSlice, whitelist, err = c.get(whitelistKey)
 			if err != nil && err != redis.Nil {
 				raven.CaptureError(err, nil)
 				c.logger.Error("failed to retrieve whitelist", zap.Error(err))
 			} else {
 				c.whitelistLock.Lock()
 				c.whitelist = whitelist
+				c.whitelistSlice = whitelistSlice
 				c.whitelistLock.Unlock()
 			}
 
-			blacklist, err = c.get(blacklistKey)
+			blacklistSlice, blacklist, err = c.get(blacklistKey)
 			if err != nil && err != redis.Nil {
 				raven.CaptureError(err, nil)
 				c.logger.Error("failed to retrieve blacklist", zap.Error(err))
 			} else {
 				c.blacklistLock.Lock()
 				c.blacklist = blacklist
+				c.blacklistSlice = blacklistSlice
 				c.blacklistLock.Unlock()
 			}
 
@@ -116,4 +121,26 @@ func (c *Checker) IsBlacklisted(guildID string) bool {
 
 	_, ok := c.blacklist[guildID]
 	return ok
+}
+
+func (c *Checker) GetWhitelist() []string {
+	if !c.enable {
+		return nil
+	}
+
+	c.whitelistLock.RLock()
+	defer c.whitelistLock.RUnlock()
+
+	return c.whitelistSlice
+}
+
+func (c *Checker) GetBlacklist() []string {
+	if !c.enable {
+		return nil
+	}
+
+	c.blacklistLock.RLock()
+	defer c.blacklistLock.RUnlock()
+
+	return c.blacklistSlice
 }

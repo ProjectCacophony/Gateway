@@ -9,14 +9,14 @@ const (
 	blacklistKey = "cacophony.whitelist.blacklist"
 )
 
-func (c *Checker) get(key string) (map[string]interface{}, error) {
+func (c *Checker) get(key string) ([]string, map[string]interface{}, error) {
 	res, err := c.redis.Get(key).Result()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	ids := strings.Split(res, ";")
-	return sliceIntoMap(ids), nil
+	return ids, sliceIntoMap(ids), nil
 }
 
 func sliceIntoMap(list []string) map[string]interface{} {
