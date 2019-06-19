@@ -14,6 +14,7 @@
 # HASH
 # CLUSTER_ENVIRONMENT
 # DISCORD_API_BASE
+# DEDUPLICATE
 
 template="k8s/manifest.tmpl.yaml"
 target="k8s/manifest.yaml"
@@ -32,3 +33,4 @@ sed -i -e "s|{{ERRORTRACKING_RAVEN_DSN}}|$ERRORTRACKING_RAVEN_DSN|g" "$target"
 sed -i -e "s|{{HASH}}|$HASH|g" "$target"
 sed -i -e "s|{{CLUSTER_ENVIRONMENT}}|$CLUSTER_ENVIRONMENT|g" "$target"
 sed -i -e "s|{{DISCORD_API_BASE}}|$DISCORD_API_BASE|g" "$target"
+sed -i -e "s|{{DEDUPLICATE}}|$DEDUPLICATE|g" "$target"

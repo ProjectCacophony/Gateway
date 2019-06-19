@@ -19,7 +19,8 @@ type config struct {
 	EventTTL              time.Duration        `envconfig:"EVENT_TTL" default:"10m"`
 	RedisAddress          string               `envconfig:"REDIS_ADDRESS" default:"localhost:6379"`
 	RedisPassword         string               `envconfig:"REDIS_PASSWORD"`
-	EnableWhitelist       bool                 `envconfig:"ENABLE_WHITELIST" default:"false"`
 	ErrorTracking         errortracking.Config `envconfig:"ERRORTRACKING"`
 	DiscordAPIBase        string               `envconfig:"DISCORD_API_BASE"`
+	EnableWhitelist       bool                 `envconfig:"ENABLE_WHITELIST" default:"false"`
+	Deduplicate           bool                 `envconfig:"DEDUPLICATE" default:"true"`
 }

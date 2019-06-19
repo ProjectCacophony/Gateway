@@ -19,6 +19,7 @@ type EventHandler struct {
 	publisher   *events.Publisher
 	checker     *whitelist.Checker
 	state       *state.State
+	deduplicate bool
 }
 
 // NewEventHandler creates a new EventHandler
@@ -28,6 +29,7 @@ func NewEventHandler(
 	publisher *events.Publisher,
 	checker *whitelist.Checker,
 	state *state.State,
+	deduplicate bool,
 ) *EventHandler {
 	return &EventHandler{
 		logger:      logger,
@@ -35,6 +37,7 @@ func NewEventHandler(
 		publisher:   publisher,
 		checker:     checker,
 		state:       state,
+		deduplicate: deduplicate,
 	}
 }
 
@@ -84,24 +87,26 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 		return
 	}
 
-	duplicate, err := eh.IsDuplicate(event.CacheKey, expiration)
-	if err != nil {
-		raven.CaptureError(err, nil)
-		l.Debug("unable to deduplicate event",
-			zap.Error(err),
-			zap.Any("event", eventItem),
-		)
-
-		err = eh.state.SharedStateEventHandler(session, eventItem)
+	if eh.deduplicate {
+		duplicate, err := eh.IsDuplicate(event.CacheKey, expiration)
 		if err != nil {
 			raven.CaptureError(err, nil)
-			l.Error("state client failed to handle event", zap.Error(err))
+			l.Debug("unable to deduplicate event",
+				zap.Error(err),
+				zap.Any("event", eventItem),
+			)
+
+			err = eh.state.SharedStateEventHandler(session, eventItem)
+			if err != nil {
+				raven.CaptureError(err, nil)
+				l.Error("state client failed to handle event", zap.Error(err))
+			}
+			return
 		}
-		return
-	}
-	if duplicate {
-		l.Debug("skipping event, as it is a duplicate")
-		return
+		if duplicate {
+			l.Debug("skipping event, as it is a duplicate")
+			return
+		}
 	}
 
 	err = eh.state.SharedStateEventHandler(session, eventItem)

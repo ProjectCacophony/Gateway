@@ -116,6 +116,7 @@ func main() {
 		publisher,
 		checker,
 		stateClient,
+		config.Deduplicate,
 	)
 
 	// init http server
@@ -148,6 +149,7 @@ func main() {
 	logger.Info("service is running",
 		zap.Int("port", config.Port),
 		zap.Bool("whitelist_enabled", config.EnableWhitelist),
+		zap.Bool("deduplicate", config.Deduplicate),
 	)
 
 	// wait for CTRL+C to stop the service
