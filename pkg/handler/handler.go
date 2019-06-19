@@ -127,5 +127,5 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 		return
 	}
 
-	eh.logger.Debug("published event")
+	l.Debug("published event")
 }
