@@ -19,7 +19,7 @@ kind: Deployment
 metadata:
   name: gateway
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: gateway
@@ -91,13 +91,13 @@ spec:
             value: "{{DEDUPLICATE}}"
 
 
-#---
-#apiVersion: policy/v1beta1
-#kind: PodDisruptionBudget
-#metadata:
-#  name: gateway-pdb
-#spec:
-#  minAvailable: 1
-#  selector:
-#    matchLabels:
-#      app: gateway
+---
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: gateway-pdb
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: gateway
