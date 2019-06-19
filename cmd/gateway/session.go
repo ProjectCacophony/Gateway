@@ -32,7 +32,6 @@ func NewSession(
 	}
 	discordSession.LogLevel = discordgo.LogInformational
 	discordSession.StateEnabled = false
-	discordSession.SyncEvents = true
 
 	discordSession.AddHandler(eventHandler.OnDiscordEvent)
 
