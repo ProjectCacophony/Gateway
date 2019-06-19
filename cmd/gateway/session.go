@@ -46,7 +46,7 @@ func NewSession(
 	logger.Info("connected Bot to Discord Gateway")
 
 	go func() {
-		time.Sleep(5 * time.Minute)
+		time.Sleep(3 * time.Hour)
 
 		requestGuildMembers(
 			discordSession,
