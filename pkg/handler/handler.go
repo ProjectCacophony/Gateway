@@ -85,7 +85,7 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 		zap.String("event_bot_user_id", event.BotUserID),
 	)
 
-	if eh.checker.IsBlacklisted(event.GuildID) {
+	if event.GuildID != "" && eh.checker.IsBlacklisted(event.GuildID) {
 		return
 	}
 
