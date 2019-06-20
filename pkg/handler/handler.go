@@ -41,22 +41,9 @@ func NewEventHandler(
 	}
 }
 
-// OnReadyHandle received onReady events (has to be specified explicitely)
-func (eh *EventHandler) OnReadyHandle(session *discordgo.Session, eventItem *discordgo.Ready) {
-	err := eh.state.SharedStateEventHandler(session, eventItem)
-	if err != nil {
-		raven.CaptureError(err, nil)
-		eh.logger.Error("state client failed to handle onReady event", zap.Error(err))
-	}
-}
-
 // OnDiscordEvent receives discord events
 func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem interface{}) {
 	var err error
-
-	if session.State == nil || session.State.User == nil {
-		return
-	}
 
 	event, expiration, err := events.GenerateEventFromDiscordgoEvent(
 		session.State.User.ID,
@@ -64,7 +51,7 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 	)
 	if err != nil {
 		raven.CaptureError(err, nil)
-		eh.logger.Debug("unable to generate event",
+		eh.logger.Error("unable to generate event",
 			zap.Error(err),
 			zap.Any("event", eventItem),
 		)
@@ -78,6 +65,11 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 	}
 
 	if event == nil {
+		err = eh.state.SharedStateEventHandler(session, eventItem)
+		if err != nil {
+			raven.CaptureError(err, nil)
+			eh.logger.Error("state client failed to handle event", zap.Error(err))
+		}
 		return
 	}
 
