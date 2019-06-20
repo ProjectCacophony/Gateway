@@ -41,6 +41,15 @@ func NewEventHandler(
 	}
 }
 
+// OnReadyHandle received onReady events (has to be specified explicitely)
+func (eh *EventHandler) OnReadyHandle(session *discordgo.Session, eventItem *discordgo.Ready) {
+	err := eh.state.SharedStateEventHandler(session, eventItem)
+	if err != nil {
+		raven.CaptureError(err, nil)
+		eh.logger.Error("state client failed to handle onReady event", zap.Error(err))
+	}
+}
+
 // OnDiscordEvent receives discord events
 func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem interface{}) {
 	var err error

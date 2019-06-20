@@ -6,6 +6,6 @@ require (
 	github.com/go-redis/redis v6.15.2+incompatible
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/pkg/errors v0.8.1
-	gitlab.com/Cacophony/go-kit v0.0.0-20190619191805-1f5f835decd4
+	gitlab.com/Cacophony/go-kit v0.0.0-20190620171408-7fda6f595b55
 	go.uber.org/zap v1.10.0
 )

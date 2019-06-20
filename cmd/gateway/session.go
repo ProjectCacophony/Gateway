@@ -33,6 +33,7 @@ func NewSession(
 	discordSession.LogLevel = discordgo.LogInformational
 	discordSession.StateEnabled = false
 
+	discordSession.AddHandler(eventHandler.OnReadyHandle)
 	discordSession.AddHandler(eventHandler.OnDiscordEvent)
 
 	// start discord session
