@@ -85,10 +85,7 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 		zap.String("event_bot_user_id", event.BotUserID),
 	)
 
-	if event.GuildID != "" &&
-		(!eh.checker.IsWhitelisted(event.GuildID) ||
-			eh.checker.IsBlacklisted(event.GuildID)) {
-		l.Debug("skipping event because guild is not whitelisted")
+	if eh.checker.IsBlacklisted(event.GuildID) {
 		return
 	}
 
@@ -118,6 +115,11 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 	if err != nil {
 		raven.CaptureError(err, nil)
 		l.Error("state client failed to handle event", zap.Error(err))
+	}
+
+	if event.GuildID != "" && !eh.checker.IsWhitelisted(event.GuildID) {
+		l.Debug("skipping publishing event because guild is not whitelisted")
+		return
 	}
 
 	err, recoverable := eh.publisher.Publish(
