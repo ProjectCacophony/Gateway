@@ -143,6 +143,7 @@ func main() {
 			stateClient,
 			checker,
 			discordCloseChannel,
+			config.RequestMembersDelay,
 		)
 	}
 
@@ -150,6 +151,7 @@ func main() {
 		zap.Int("port", config.Port),
 		zap.Bool("whitelist_enabled", config.EnableWhitelist),
 		zap.Bool("deduplicate", config.Deduplicate),
+		zap.Duration("request_members_delay", config.RequestMembersDelay),
 	)
 
 	// wait for CTRL+C to stop the service

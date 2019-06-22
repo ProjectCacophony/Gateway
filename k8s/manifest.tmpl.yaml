@@ -89,6 +89,8 @@ spec:
                 key: discordAPIBase
           - name: DEDUPLICATE
             value: "{{DEDUPLICATE}}"
+          - name: REQUEST_MEMBERS_DELAY
+            value: "{{REQUEST_MEMBERS_DELAY}}"
 
 
 ---

@@ -18,6 +18,7 @@ func NewSession(
 	state *state.State,
 	checker *whitelist.Checker,
 	closeChannel chan interface{},
+	requestMembersDelay time.Duration,
 ) {
 	// init discordgo session
 	discordgo.Logger = logging.DiscordgoLogger(
@@ -46,7 +47,7 @@ func NewSession(
 	logger.Info("connected Bot to Discord Gateway")
 
 	go func() {
-		time.Sleep(3 * time.Hour)
+		time.Sleep(requestMembersDelay)
 
 		requestGuildMembers(
 			discordSession,
