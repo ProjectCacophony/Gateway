@@ -66,8 +66,9 @@ func main() {
 
 	// init redis
 	redisClient := redis.NewClient(&redis.Options{
-		Addr:     config.RedisAddress,
-		Password: config.RedisPassword,
+		Addr:        config.RedisAddress,
+		Password:    config.RedisPassword,
+		ReadTimeout: time.Second * 15,
 	})
 	_, err = redisClient.Ping().Result()
 	if err != nil {
