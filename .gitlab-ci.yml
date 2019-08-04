@@ -48,7 +48,7 @@ Deploy:
 
 Deploy to GKE:
   stage: Staging
-  extends: .GKE - Command Base
+  extends: .GKE - Staging
   script:
   - k8s/render.sh
   - kubectl apply -f k8s/manifest.yaml
