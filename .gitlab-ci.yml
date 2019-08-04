@@ -8,6 +8,9 @@ include:
   - project: 'Cacophony/gitlab-ci'
     ref: master
     file: '/notify.yml'
+  - project: 'Cacophony/gitlab-ci'
+    ref: master
+    file: '/gke-deploy.yml'
 
 variables:
   DEPLOYMENT_NAME: "gateway"
@@ -42,6 +45,14 @@ Sentry Release:
 Deploy:
   stage: Staging
   extends: .Go Service - Deploy Staging
+
+Deploy to GKE:
+  stage: Staging
+  extends: .GKE - Command Base
+  script:
+  - k8s/render.sh
+  - kubectl apply -f k8s/manifest.yaml
+  - kubectl rollout status deployment.v1.apps/${DEPLOYMENT_NAME}
 
 Sentry Deploy:
   stage: Finalise Staging
