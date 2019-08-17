@@ -9,7 +9,7 @@ include:
     ref: master
     file: '/notify.yml'
   - project: 'Cacophony/gitlab-ci'
-    ref: master
+    ref: weird-command-issue
     file: '/gke-deploy.yml'
 
 variables:
@@ -52,7 +52,10 @@ Deploy to GKE:
   script:
   - k8s/render.sh
   - kubectl apply -f k8s/manifest.yaml
-  - kubectl rollout status deployment.v1.apps/${DEPLOYMENT_NAME}
+  - >
+    kubectl rollout status
+    --namespace "${K8S_NAMESPACE:-cacophony}"
+    deployment.v1.apps/${DEPLOYMENT_NAME}
 
 Sentry Deploy:
   stage: Finalise Staging
