@@ -9,7 +9,7 @@ include:
     ref: master
     file: '/notify.yml'
   - project: 'Cacophony/gitlab-ci'
-    ref: weird-command-issue
+    ref: master
     file: '/gke-deploy.yml'
 
 variables:
