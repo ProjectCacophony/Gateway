@@ -5,9 +5,6 @@ include:
   - project: 'Cacophony/gitlab-ci'
     ref: master
     file: '/sentry.yml'
-  - project: 'Cacophony/gitlab-ci'
-    ref: master
-    file: '/notify.yml'
 
 variables:
   DEPLOYMENT_NAME: "gateway"
@@ -48,15 +45,3 @@ Sentry Deploy:
   extends: .Sentry - Sentry Deploy
   variables:
     SENTRY_ENV: "staging"
-
-Notify Success:
-  stage: Finalise Staging
-  extends: .Notify - Success
-  variables:
-    DEPLOYMENT_ENV: "Staging"
-
-Notify Error:
-  stage: Finalise Staging
-  extends: .Notify - Error
-  variables:
-    DEPLOYMENT_ENV: "Staging"
