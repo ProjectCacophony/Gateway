@@ -10,6 +10,4 @@ require (
 	go.uber.org/zap v1.10.0
 )
 
-replace gitlab.com/Cacophony/go-kit => ../go-kit
-
 go 1.13
