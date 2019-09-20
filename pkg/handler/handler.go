@@ -106,7 +106,7 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 			return
 		}
 		if duplicate {
-			l.Debug("skipping event, as it is a duplicate")
+			l.Debug("skipping event, as it is a duplicate", zap.String("cache_key", event.CacheKey))
 			return
 		}
 	}
