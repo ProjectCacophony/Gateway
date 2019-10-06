@@ -45,7 +45,7 @@ func NewEventHandler(
 func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem interface{}) {
 	var err error
 
-	if session == nil || session.State == nil {
+	if session == nil || session.State == nil || session.State.User == nil {
 		return
 	}
 
