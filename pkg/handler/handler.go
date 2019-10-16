@@ -89,6 +89,31 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 		return
 	}
 
+	var oldGuild *discordgo.Guild
+	var oldMember *discordgo.Member
+	var oldChannel *discordgo.Channel
+	var oldRole *discordgo.Role
+	var oldEmoji []*discordgo.Emoji
+	switch event.Type {
+	case events.GuildUpdateType:
+		oldGuild, _ = eh.state.Guild(event.GuildID)
+	case events.GuildMemberUpdateType:
+		oldMember, _ = eh.state.Member(event.GuildID, event.GuildMemberUpdate.Member.User.ID)
+	case events.ChannelUpdateType:
+		oldChannel, _ = eh.state.Channel(event.ChannelUpdate.ID)
+	case events.ChannelDeleteType:
+		oldChannel, _ = eh.state.Channel(event.ChannelDelete.ID)
+	case events.GuildRoleUpdateType:
+		oldRole, _ = eh.state.Role(event.GuildID, event.GuildRoleUpdate.Role.ID)
+	case events.GuildRoleDeleteType:
+		oldRole, _ = eh.state.Role(event.GuildID, event.GuildRoleDelete.RoleID)
+	case events.GuildEmojisUpdateType:
+		guild, _ := eh.state.Guild(event.GuildID)
+		if guild != nil {
+			oldEmoji = guild.Emojis
+		}
+	}
+
 	if eh.deduplicate {
 		duplicate, err := eh.IsDuplicate(event.CacheKey, expiration)
 		if err != nil {
@@ -122,6 +147,37 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 		return
 	}
 
+	var diffEvent *events.Event
+	switch event.Type {
+	case events.GuildUpdateType:
+		newGuild, _ := eh.state.Guild(event.GuildID)
+		diffEvent, err = guildDiff(oldGuild, newGuild)
+	case events.GuildMemberUpdateType:
+		newMember, _ := eh.state.Member(event.GuildID, event.GuildMemberUpdate.Member.User.ID)
+		diffEvent, err = memberDiff(oldMember, newMember)
+	case events.ChannelUpdateType:
+		newChannel, _ := eh.state.Channel(event.ChannelUpdate.ID)
+		diffEvent, err = channelDiff(oldChannel, newChannel)
+	case events.ChannelDeleteType:
+		newChannel, _ := eh.state.Channel(event.ChannelDelete.ID)
+		diffEvent, err = channelDiff(oldChannel, newChannel)
+	case events.GuildRoleUpdateType:
+		newRole, _ := eh.state.Role(event.GuildID, event.GuildRoleUpdate.Role.ID)
+		diffEvent, err = roleDiff(event.GuildID, oldRole, newRole)
+	case events.GuildRoleDeleteType:
+		newRole, _ := eh.state.Role(event.GuildID, event.GuildRoleDelete.RoleID)
+		diffEvent, err = roleDiff(event.GuildID, oldRole, newRole)
+	case events.GuildEmojisUpdateType:
+		guild, _ := eh.state.Guild(event.GuildID)
+		if guild != nil {
+			newEmoji := guild.Emojis
+			diffEvent, err = emojiDiff(event.GuildID, oldEmoji, newEmoji)
+		}
+	}
+	if err != nil {
+		raven.CaptureError(err, nil)
+	}
+
 	err, recoverable := eh.publisher.Publish(
 		context.TODO(),
 		event,
@@ -140,4 +196,25 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 	}
 
 	l.Debug("published event")
+
+	if diffEvent != nil {
+		err, recoverable = eh.publisher.Publish(
+			context.TODO(),
+			diffEvent,
+		)
+		if err != nil {
+			raven.CaptureError(err, nil)
+			if !recoverable {
+				l.Fatal("unrecoverable publishing error, shutting down",
+					zap.Error(err),
+				)
+			}
+			l.Error("unable to publish event",
+				zap.Error(err),
+			)
+			return
+		}
+
+		l.Debug("published diff event")
+	}
 }
