@@ -94,7 +94,8 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 	var oldChannel *discordgo.Channel
 	var oldRole *discordgo.Role
 	var oldEmoji []*discordgo.Emoji
-	var oldWebhoks []*discordgo.Webhook
+	var oldWebhooks []*discordgo.Webhook
+	var oldInvites []*discordgo.Invite
 	switch event.Type {
 	case events.GuildUpdateType:
 		oldGuild, _ = eh.state.Guild(event.GuildID)
@@ -114,7 +115,9 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 			oldEmoji = guild.Emojis
 		}
 	case events.WebhooksUpdateType:
-		oldWebhoks, _ = eh.state.GuildWebhooks(event.GuildID)
+		oldWebhooks, _ = eh.state.GuildWebhooks(event.GuildID)
+	case events.GuildMemberAddType:
+		oldInvites, _ = eh.state.GuildInvites(event.GuildID)
 	}
 
 	if eh.deduplicate {
@@ -178,7 +181,23 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 		}
 	case events.WebhooksUpdateType:
 		newWebhooks, _ := eh.state.GuildWebhooks(event.WebhooksUpdate.GuildID)
-		diffEvent, err = webhooksDiff(event.GuildID, oldWebhoks, newWebhooks)
+		diffEvent, err = webhooksDiff(event.GuildID, oldWebhooks, newWebhooks)
+	case events.GuildMemberAddType:
+		newInvites, _ := eh.state.GuildInvites(event.GuildID)
+		diffEvent, err = invitesDiff(event.GuildID, oldInvites, newInvites)
+		if err == nil {
+			new, updated, removed := compareInvitesDiff(diffEvent.DiffInvites)
+			if len(new) <= 0 && len(updated) <= 0 && len(removed) <= 0 {
+				usedInvite := inviteDiffFindUsed(diffEvent.DiffInvites)
+				if usedInvite != nil {
+					event.GuildMemberAddExtra = &events.GuildMemberAddExtra{
+						UsedInviteCode: usedInvite.Code,
+					}
+				}
+				// no change except possibly uses, do not send invites diff
+				diffEvent = nil
+			}
+		}
 	}
 	if err != nil {
 		raven.CaptureError(err, nil)

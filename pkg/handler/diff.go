@@ -104,3 +104,83 @@ func webhooksDiff(guildID string, old, new []*discordgo.Webhook) (*events.Event,
 
 	return event, nil
 }
+
+func invitesDiff(guildID string, old, new []*discordgo.Invite) (*events.Event, error) {
+	event, err := events.New(events.CacophonyDiffInvites)
+	if err != nil {
+		return nil, err
+	}
+	event.GuildID = guildID
+	event.DiffInvites = &events.DiffInvites{
+		Old: old,
+		New: new,
+	}
+
+	return event, nil
+}
+
+func compareInvitesDiff(diff *events.DiffInvites) (new []*discordgo.Invite, updated [][]*discordgo.Invite, deleted []*discordgo.Invite) {
+	for _, oldInvite := range diff.Old {
+		newInvite := inviteSliceFindInvite(oldInvite.Code, diff.New)
+		if newInvite != nil {
+			if !inviteEqual(oldInvite, newInvite) {
+				updated = append(updated, []*discordgo.Invite{oldInvite, newInvite})
+			}
+			continue
+		}
+
+		deleted = append(deleted, oldInvite)
+	}
+
+	for _, newInvite := range diff.New {
+		if inviteSliceFindInvite(newInvite.Code, diff.Old) == nil {
+			new = append(new, newInvite)
+		}
+	}
+
+	return new, updated, deleted
+}
+
+func inviteSliceFindInvite(code string, list []*discordgo.Invite) *discordgo.Invite {
+	for _, invite := range list {
+		if invite.Code == code {
+			return invite
+		}
+	}
+
+	return nil
+}
+
+func inviteEqual(a, b *discordgo.Invite) bool {
+	if a.Code != b.Code {
+		return false
+	}
+
+	if a.Revoked != b.Revoked {
+		return false
+	}
+
+	return true
+}
+
+func inviteDiffFindUsed(diff *events.DiffInvites) *discordgo.Invite {
+	var matches int
+	var match *discordgo.Invite
+
+	for _, newInvite := range diff.New {
+		oldInvite := inviteSliceFindInvite(newInvite.Code, diff.Old)
+		if oldInvite == nil {
+			continue
+		}
+
+		if newInvite.Uses == oldInvite.Uses+1 {
+			matches++
+			match = newInvite
+		}
+		if matches > 1 {
+			return nil
+		}
+	}
+
+	return match
+}
