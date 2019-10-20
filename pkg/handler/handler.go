@@ -94,6 +94,7 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 	var oldChannel *discordgo.Channel
 	var oldRole *discordgo.Role
 	var oldEmoji []*discordgo.Emoji
+	var oldWebhoks []*discordgo.Webhook
 	switch event.Type {
 	case events.GuildUpdateType:
 		oldGuild, _ = eh.state.Guild(event.GuildID)
@@ -112,6 +113,8 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 		if guild != nil {
 			oldEmoji = guild.Emojis
 		}
+	case events.WebhooksUpdateType:
+		oldWebhoks, _ = eh.state.GuildWebhooks(event.GuildID)
 	}
 
 	if eh.deduplicate {
@@ -173,6 +176,9 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 			newEmoji := guild.Emojis
 			diffEvent, err = emojiDiff(event.GuildID, oldEmoji, newEmoji)
 		}
+	case events.WebhooksUpdateType:
+		newWebhooks, _ := eh.state.GuildWebhooks(event.WebhooksUpdate.GuildID)
+		diffEvent, err = webhooksDiff(event.GuildID, oldWebhoks, newWebhooks)
 	}
 	if err != nil {
 		raven.CaptureError(err, nil)

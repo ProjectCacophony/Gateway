@@ -90,3 +90,17 @@ func emojiDiff(guildID string, old, new []*discordgo.Emoji) (*events.Event, erro
 
 	return event, nil
 }
+
+func webhooksDiff(guildID string, old, new []*discordgo.Webhook) (*events.Event, error) {
+	event, err := events.New(events.CacophonyDiffWebhooks)
+	if err != nil {
+		return nil, err
+	}
+	event.GuildID = guildID
+	event.DiffWebhooks = &events.DiffWebhooks{
+		Old: old,
+		New: new,
+	}
+
+	return event, nil
+}
