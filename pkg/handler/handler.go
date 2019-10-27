@@ -183,21 +183,85 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 		newWebhooks, _ := eh.state.GuildWebhooks(event.WebhooksUpdate.GuildID)
 		diffEvent, err = webhooksDiff(event.GuildID, oldWebhooks, newWebhooks)
 	case events.GuildMemberAddType:
-		newInvites, _ := eh.state.GuildInvites(event.GuildID)
-		diffEvent, err = invitesDiff(event.GuildID, oldInvites, newInvites)
-		if err == nil {
-			new, updated, removed := compareInvitesDiff(diffEvent.DiffInvites)
-			if len(new) <= 0 && len(updated) <= 0 && len(removed) <= 0 {
-				usedInvite := inviteDiffFindUsed(diffEvent.DiffInvites)
-				if usedInvite != nil {
-					event.GuildMemberAddExtra = &events.GuildMemberAddExtra{
-						UsedInvite: usedInvite,
-					}
+		go func(guildID string, oldInvites []*discordgo.Invite, memberAdd *discordgo.GuildMemberAdd) {
+			newInvites, err := eh.state.GuildInvitesWithRefresh(guildID, session)
+			if err != nil {
+				raven.CaptureError(err, nil)
+				l.Error("failure getting new invites", zap.Error(err))
+			}
+
+			extraEvent, err := events.New(events.CacophonyGuildMemberAddExtra)
+			if err != nil {
+				raven.CaptureError(err, nil)
+				l.Error("failure generating member add extra event", zap.Error(err))
+				return
+			}
+			extraEvent.GuildID = guildID
+			extraEvent.GuildMemberAddExtra = &events.GuildMemberAddExtra{
+				GuildMemberAdd: memberAdd,
+			}
+
+			var diffEvent *events.Event
+			if newInvites != nil {
+				diffEvent, err = invitesDiff(guildID, oldInvites, newInvites)
+				if err != nil {
+					raven.CaptureError(err, nil)
+					l.Error("failure generating invites diff", zap.Error(err))
+					return
 				}
+			}
+
+			usedInvite := inviteDiffFindUsed(diffEvent.DiffInvites)
+			if usedInvite != nil {
+				extraEvent.GuildMemberAddExtra.UsedInvite = usedInvite
+
 				// no change except possibly uses, do not send invites diff
 				diffEvent = nil
 			}
-		}
+
+			if extraEvent != nil {
+				err, recoverable := eh.publisher.Publish(
+					context.TODO(),
+					extraEvent,
+				)
+				if err != nil {
+					raven.CaptureError(err, nil)
+					if !recoverable {
+						l.Fatal("unrecoverable publishing error, shutting down",
+							zap.Error(err),
+						)
+					}
+					l.Error("unable to publish event",
+						zap.Error(err),
+					)
+					return
+				}
+
+				l.Debug("published member add extra event")
+			}
+
+			if diffEvent != nil {
+				err, recoverable := eh.publisher.Publish(
+					context.TODO(),
+					diffEvent,
+				)
+				if err != nil {
+					raven.CaptureError(err, nil)
+					if !recoverable {
+						l.Fatal("unrecoverable publishing error, shutting down",
+							zap.Error(err),
+						)
+					}
+					l.Error("unable to publish event",
+						zap.Error(err),
+					)
+					return
+				}
+
+				l.Debug("published invite diff event")
+			}
+
+		}(event.GuildID, oldInvites, event.GuildMemberAdd)
 	}
 	if err != nil {
 		raven.CaptureError(err, nil)
