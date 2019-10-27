@@ -211,9 +211,12 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 				}
 			}
 
-			usedInvite := inviteDiffFindUsed(diffEvent.DiffInvites)
-			if usedInvite != nil {
-				extraEvent.GuildMemberAddExtra.UsedInvite = usedInvite
+			new, updated, removed := compareInvitesDiff(diffEvent.DiffInvites)
+			if len(new) <= 0 && len(updated) <= 0 && len(removed) <= 0 {
+				usedInvite := inviteDiffFindUsed(diffEvent.DiffInvites)
+				if usedInvite != nil {
+					extraEvent.GuildMemberAddExtra.UsedInvite = usedInvite
+				}
 
 				// no change except possibly uses, do not send invites diff
 				diffEvent = nil
