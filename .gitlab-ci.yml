@@ -62,20 +62,3 @@ Sentry Deploy:
   extends: .Sentry - Sentry Deploy
   variables:
     SENTRY_ENV: "staging"
-  only:
-  - master
-Notify Success:
-  stage: Finalise Staging
-  extends: .Notify - Success
-  variables:
-    DEPLOYMENT_ENV: "Staging"
-  only:
-  - master
-
-Notify Error:
-  stage: Finalise Staging
-  extends: .Notify - Error
-  variables:
-    DEPLOYMENT_ENV: "Staging"
-  only:
-  - master

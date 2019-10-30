@@ -46,6 +46,14 @@ func NewSession(
 
 	logger.Info("connected Bot to Discord Gateway")
 
+	discordSession.UpdateStatusComplex(discordgo.UpdateStatusData{
+		Game: &discordgo.Game{
+			Name: ".help",
+			Type: discordgo.GameTypeGame,
+		},
+		Status: "online",
+	})
+
 	go func() {
 		time.Sleep(requestMembersDelay)
 
