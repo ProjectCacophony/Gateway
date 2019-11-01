@@ -93,13 +93,13 @@ spec:
             value: "{{REQUEST_MEMBERS_DELAY}}"
 
 
----
-apiVersion: policy/v1beta1
-kind: PodDisruptionBudget
-metadata:
-  name: gateway-pdb
-spec:
-  minAvailable: 1
-  selector:
-    matchLabels:
-      app: gateway
+#---
+#apiVersion: policy/v1beta1
+#kind: PodDisruptionBudget
+#metadata:
+#  name: gateway-pdb
+#spec:
+#  minAvailable: 1
+#  selector:
+#    matchLabels:
+#      app: gateway
