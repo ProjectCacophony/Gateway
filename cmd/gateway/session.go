@@ -36,6 +36,12 @@ func NewSession(
 
 	discordSession.AddHandler(eventHandler.OnDiscordEvent)
 
+	// sets the necessary gateway intents https://discord.com/developers/docs/topics/gateway#gateway-intents
+	discordSession.Identify.Intents = discordgo.MakeIntent(
+		discordgo.IntentsAllWithoutPrivileged |
+			discordgo.IntentsGuildMembers,
+	)
+
 	// start discord session
 	err = discordSession.Open()
 	if err != nil {
