@@ -39,7 +39,8 @@ func NewSession(
 	// sets the necessary gateway intents https://discord.com/developers/docs/topics/gateway#gateway-intents
 	discordSession.Identify.Intents = discordgo.MakeIntent(
 		discordgo.IntentsAllWithoutPrivileged |
-			discordgo.IntentsGuildMembers,
+			discordgo.IntentsGuildMembers |
+			discordgo.IntentsGuildPresences,
 	)
 
 	// start discord session
