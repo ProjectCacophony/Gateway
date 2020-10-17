@@ -16,6 +16,7 @@
 # DISCORD_API_BASE
 # DEDUPLICATE
 # REQUEST_MEMBERS_DELAY
+# HONEYCOMB_API_KEY
 
 template="k8s/manifest.tmpl.yaml"
 target="k8s/manifest.yaml"
@@ -36,3 +37,4 @@ sed -i -e "s|{{CLUSTER_ENVIRONMENT}}|$CLUSTER_ENVIRONMENT|g" "$target"
 sed -i -e "s|{{DISCORD_API_BASE}}|$DISCORD_API_BASE|g" "$target"
 sed -i -e "s|{{DEDUPLICATE}}|$DEDUPLICATE|g" "$target"
 sed -i -e "s|{{REQUEST_MEMBERS_DELAY}}|$REQUEST_MEMBERS_DELAY|g" "$target"
+sed -i -e "s|{{HONEYCOMB_API_KEY}}|$HONEYCOMB_API_KEY|g" "$target"

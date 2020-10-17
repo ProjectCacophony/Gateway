@@ -11,6 +11,7 @@ stringData:
   redisPassword: "{{REDIS_PASSWORD}}"
   errorTrackingRavenDSN: "{{ERRORTRACKING_RAVEN_DSN}}"
   discordAPIBase: "{{DISCORD_API_BASE}}"
+  honyecombAPIKey: "{{HONEYCOMB_API_KEY}}"
 
 
 ---
@@ -87,6 +88,11 @@ spec:
               secretKeyRef:
                 name: gateway-secret
                 key: discordAPIBase
+          - name: HONEYCOMB_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: gateway-secret
+                key: honyecombAPIKey
           - name: DEDUPLICATE
             value: "{{DEDUPLICATE}}"
           - name: REQUEST_MEMBERS_DELAY

@@ -9,6 +9,8 @@ import (
 	"gitlab.com/Cacophony/Gateway/pkg/whitelist"
 	"gitlab.com/Cacophony/go-kit/events"
 	"gitlab.com/Cacophony/go-kit/state"
+	"go.opentelemetry.io/otel/api/global"
+	"go.opentelemetry.io/otel/label"
 	"go.uber.org/zap"
 )
 
@@ -43,6 +45,9 @@ func NewEventHandler(
 
 // OnDiscordEvent receives discord events
 func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem interface{}) {
+	ctx, span := global.Tracer("cacophony.dev/gateway").Start(context.Background(), "Recv.Discord")
+	defer span.End()
+
 	var err error
 
 	if session == nil || session.State == nil || session.State.User == nil {
@@ -76,6 +81,16 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 		}
 		return
 	}
+
+	span.SetAttributes(
+		label.String("cacophony.dev/eventing_type", string(event.Type)),
+		label.String("cacophony.dev/discord/bot_user_id", event.BotUserID),
+		label.String("cacophony.dev/discord/guild_id", event.GuildID),
+		label.String("cacophony.dev/discord/channel_id", event.ChannelID),
+		label.String("cacophony.dev/discord/user_id", event.UserID),
+		label.String("cacophony.dev/discord/message_id", event.MessageID),
+		label.Bool("cacophony.dev/eventing/is_command", event.Command()),
+	)
 
 	l := eh.logger.With(
 		zap.String("event_id", event.ID),
@@ -272,7 +287,7 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 	}
 
 	err, recoverable := eh.publisher.Publish(
-		context.TODO(),
+		ctx,
 		event,
 	)
 	if err != nil {

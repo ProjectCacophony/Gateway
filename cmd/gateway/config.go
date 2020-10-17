@@ -24,4 +24,5 @@ type config struct {
 	EnableWhitelist       bool                 `envconfig:"ENABLE_WHITELIST" default:"false"`
 	Deduplicate           bool                 `envconfig:"DEDUPLICATE" default:"true"`
 	RequestMembersDelay   time.Duration        `envconfig:"REQUEST_MEMBERS_DELAY" default:"3h"`
+	HoneycombAPIKey       string               `envconfig:"HONEYCOMB_API_KEY"`
 }
