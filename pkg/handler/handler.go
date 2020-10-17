@@ -9,10 +9,13 @@ import (
 	"gitlab.com/Cacophony/Gateway/pkg/whitelist"
 	"gitlab.com/Cacophony/go-kit/events"
 	"gitlab.com/Cacophony/go-kit/state"
+	"go.opentelemetry.io/contrib/propagators/b3"
 	"go.opentelemetry.io/otel/api/global"
 	"go.opentelemetry.io/otel/label"
 	"go.uber.org/zap"
 )
+
+var b3Prop = b3.B3{}
 
 // EventHandler handles discord events and puts them into rabbitMQ
 type EventHandler struct {
@@ -82,6 +85,7 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 		return
 	}
 
+	b3Prop.Inject(ctx, &event.SpanContext)
 	span.SetAttributes(
 		label.String("cacophony.dev/eventing_type", string(event.Type)),
 		label.String("cacophony.dev/discord/bot_user_id", event.BotUserID),

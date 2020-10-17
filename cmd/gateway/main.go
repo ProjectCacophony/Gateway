@@ -10,7 +10,9 @@ import (
 
 	"gitlab.com/Cacophony/go-kit/discord"
 	"gitlab.com/Cacophony/go-kit/events"
+	"go.opentelemetry.io/contrib/propagators/b3"
 	"go.opentelemetry.io/otel/api/global"
+	"go.opentelemetry.io/otel/api/propagation"
 
 	"gitlab.com/Cacophony/go-kit/errortracking"
 
@@ -85,6 +87,12 @@ func main() {
 			sdktrace.WithSyncer(honeycombExporter),
 		)
 		global.SetTracerProvider(provider)
+
+		b3Prop := b3.B3{}
+		global.SetPropagators(propagation.New(
+			propagation.WithExtractors(b3Prop),
+			propagation.WithInjectors(b3Prop),
+		))
 	}
 
 	// init raven
