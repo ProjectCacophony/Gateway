@@ -87,7 +87,6 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 	b3Prop.Inject(ctx, &event.SpanContext)
 	span.SetAttributes(
 		events.SpanLabelEventingType.String(string(event.Type)),
-		events.SpanLabelEventingIsCommand.Bool(event.Command()),
 		events.SpanLabelDiscordBotUserID.String(event.BotUserID),
 		events.SpanLabelDiscordGuildID.String(event.GuildID),
 		events.SpanLabelDiscordChannelID.String(event.ChannelID),
