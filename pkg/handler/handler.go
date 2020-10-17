@@ -11,7 +11,6 @@ import (
 	"gitlab.com/Cacophony/go-kit/state"
 	"go.opentelemetry.io/contrib/propagators/b3"
 	"go.opentelemetry.io/otel/api/global"
-	"go.opentelemetry.io/otel/label"
 	"go.uber.org/zap"
 )
 
@@ -87,13 +86,13 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 
 	b3Prop.Inject(ctx, &event.SpanContext)
 	span.SetAttributes(
-		label.String("cacophony.dev/eventing_type", string(event.Type)),
-		label.String("cacophony.dev/discord/bot_user_id", event.BotUserID),
-		label.String("cacophony.dev/discord/guild_id", event.GuildID),
-		label.String("cacophony.dev/discord/channel_id", event.ChannelID),
-		label.String("cacophony.dev/discord/user_id", event.UserID),
-		label.String("cacophony.dev/discord/message_id", event.MessageID),
-		label.Bool("cacophony.dev/eventing/is_command", event.Command()),
+		events.SpanLabelEventingType.String(string(event.Type)),
+		events.SpanLabelEventingIsCommand.Bool(event.Command()),
+		events.SpanLabelDiscordBotUserID.String(event.BotUserID),
+		events.SpanLabelDiscordGuildID.String(event.GuildID),
+		events.SpanLabelDiscordChannelID.String(event.ChannelID),
+		events.SpanLabelDiscordUserID.String(event.UserID),
+		events.SpanLabelDiscordMessageID.String(event.MessageID),
 	)
 
 	l := eh.logger.With(
