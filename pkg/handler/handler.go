@@ -47,9 +47,6 @@ func NewEventHandler(
 
 // OnDiscordEvent receives discord events
 func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem interface{}) {
-	ctx, span := global.Tracer("cacophony.dev/gateway").Start(context.Background(), "Recv.Discord")
-	defer span.End()
-
 	var err error
 
 	if session == nil || session.State == nil || session.State.User == nil {
@@ -83,6 +80,9 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 		}
 		return
 	}
+
+	ctx, span := global.Tracer("cacophony.dev/gateway").Start(context.Background(), "Recv.Discord")
+	defer span.End()
 
 	b3Prop.Inject(ctx, &event.SpanContext)
 	span.SetAttributes(

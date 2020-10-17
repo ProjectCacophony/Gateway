@@ -82,7 +82,7 @@ func main() {
 
 		provider := sdktrace.NewTracerProvider(
 			sdktrace.WithConfig(sdktrace.Config{
-				DefaultSampler: sdktrace.AlwaysSample(),
+				DefaultSampler: sdktrace.TraceIDRatioBased(0.1),
 			}),
 			sdktrace.WithSyncer(honeycombExporter),
 		)
