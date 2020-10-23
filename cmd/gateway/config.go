@@ -22,7 +22,7 @@ type config struct {
 	ErrorTracking         errortracking.Config `envconfig:"ERRORTRACKING"`
 	DiscordAPIBase        string               `envconfig:"DISCORD_API_BASE"`
 	EnableWhitelist       bool                 `envconfig:"ENABLE_WHITELIST" default:"false"`
-	Deduplicate           bool                 `envconfig:"DEDUPLICATE" default:"true"`
+	Deduplicate           bool                 `envconfig:"DEDUPLICATE" default:"false"`
 	RequestMembersDelay   time.Duration        `envconfig:"REQUEST_MEMBERS_DELAY" default:"3h"`
 	HoneycombAPIKey       string               `envconfig:"HONEYCOMB_API_KEY"`
 }
