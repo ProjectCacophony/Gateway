@@ -25,8 +25,8 @@ type EventHandler struct {
 	publisher                *events.Publisher
 	checker                  *whitelist.Checker
 	state                    *state.State
-	deduplicate              bool
 	requestGuildMembersDelay time.Duration
+	deduplicate              bool
 
 	requestOnce sync.Once
 }
