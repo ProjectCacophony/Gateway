@@ -157,6 +157,7 @@ func main() {
 		checker,
 		stateClient,
 		config.Deduplicate,
+		config.RequestMembersDelay,
 	)
 
 	// init http server

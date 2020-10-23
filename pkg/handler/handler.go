@@ -2,6 +2,8 @@ package handler
 
 import (
 	"context"
+	"sync"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	raven "github.com/getsentry/raven-go"
@@ -18,12 +20,15 @@ var b3Prop = b3.B3{}
 
 // EventHandler handles discord events and puts them into rabbitMQ
 type EventHandler struct {
-	logger      *zap.Logger
-	redisClient *redis.Client
-	publisher   *events.Publisher
-	checker     *whitelist.Checker
-	state       *state.State
-	deduplicate bool
+	logger                   *zap.Logger
+	redisClient              *redis.Client
+	publisher                *events.Publisher
+	checker                  *whitelist.Checker
+	state                    *state.State
+	deduplicate              bool
+	requestGuildMembersDelay time.Duration
+
+	requestOnce sync.Once
 }
 
 // NewEventHandler creates a new EventHandler
@@ -34,14 +39,16 @@ func NewEventHandler(
 	checker *whitelist.Checker,
 	state *state.State,
 	deduplicate bool,
+	requestGuildMembersDelay time.Duration,
 ) *EventHandler {
 	return &EventHandler{
-		logger:      logger,
-		redisClient: redisClient,
-		publisher:   publisher,
-		checker:     checker,
-		state:       state,
-		deduplicate: deduplicate,
+		logger:                   logger,
+		redisClient:              redisClient,
+		publisher:                publisher,
+		checker:                  checker,
+		state:                    state,
+		deduplicate:              deduplicate,
+		requestGuildMembersDelay: requestGuildMembersDelay,
 	}
 }
 
@@ -51,6 +58,11 @@ func (eh *EventHandler) OnDiscordEvent(session *discordgo.Session, eventItem int
 
 	if session == nil || session.State == nil || session.State.User == nil {
 		return
+	}
+
+	ready, ok := eventItem.(*discordgo.Ready)
+	if ok {
+		go eh.requestGuildMembers(session, ready)
 	}
 
 	event, expiration, err := events.GenerateEventFromDiscordgoEvent(

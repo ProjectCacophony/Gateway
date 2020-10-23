@@ -64,17 +64,6 @@ func NewSession(
 	}
 
 	go func() {
-		time.Sleep(requestMembersDelay)
-
-		requestGuildMembers(
-			discordSession,
-			state,
-			checker,
-			logger.With(zap.String("feature", "members")),
-		)
-	}()
-
-	go func() {
 		<-closeChannel
 		err := discordSession.Close()
 		if err != nil {
