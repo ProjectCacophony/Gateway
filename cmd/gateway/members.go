@@ -46,7 +46,7 @@ func requestGuildMembers(
 
 		l.Info("requesting guild members")
 
-		err = session.RequestGuildMembers(guildID, "", 0)
+		err = session.RequestGuildMembers(guildID, "", 0, false)
 		if err != nil {
 			l.Error("failure requesting guild members", zap.Error(err))
 		}
