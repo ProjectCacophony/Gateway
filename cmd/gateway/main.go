@@ -181,10 +181,7 @@ func main() {
 			logger.With(zap.String("bot_id", botID)),
 			token,
 			eventHandler,
-			stateClient,
-			checker,
 			discordCloseChannel,
-			config.RequestMembersDelay,
 		)
 	}
 

@@ -1,13 +1,9 @@
 package main
 
 import (
-	"time"
-
 	"github.com/bwmarrin/discordgo"
 	"gitlab.com/Cacophony/Gateway/pkg/handler"
-	"gitlab.com/Cacophony/Gateway/pkg/whitelist"
 	"gitlab.com/Cacophony/go-kit/logging"
-	"gitlab.com/Cacophony/go-kit/state"
 	"go.uber.org/zap"
 )
 
@@ -15,10 +11,7 @@ func NewSession(
 	logger *zap.Logger,
 	token string,
 	eventHandler *handler.EventHandler,
-	state *state.State,
-	checker *whitelist.Checker,
 	closeChannel chan interface{},
-	requestMembersDelay time.Duration,
 ) {
 	// init discordgo session
 	discordgo.Logger = logging.DiscordgoLogger(
