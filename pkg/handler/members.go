@@ -12,12 +12,8 @@ func (eh *EventHandler) requestGuildMembers(session *discordgo.Session, ready *d
 	eh.requestOnce.Do(func() {
 		time.Sleep(eh.requestGuildMembersDelay)
 
-		guildIDs := make([]string, 0, len(ready.Guilds))
-		var blacklisted bool
-
 		for _, guild := range ready.Guilds {
-			blacklisted = eh.checker.IsBlacklisted(guild.ID)
-			if blacklisted {
+			if eh.checker.IsBlacklisted(guild.ID) {
 				continue
 			}
 
@@ -30,17 +26,18 @@ func (eh *EventHandler) requestGuildMembers(session *discordgo.Session, ready *d
 				continue
 			}
 
-			guildIDs = append(guildIDs, guild.ID)
+			eh.logger.Info("requesting members for guilds",
+				zap.String("guild_id", guild.ID),
+				zap.String("bot_id", session.State.User.ID),
+			)
+
+			err = session.RequestGuildMembers(guild.ID, "", 0, false)
+			if err != nil {
+				eh.logger.Error("failure requesting guild members", zap.Error(err), zap.String("bot_id", session.State.User.ID))
+			}
+
+			time.Sleep(1 * time.Second)
 		}
 
-		eh.logger.Info("requesting members for guilds",
-			zap.Int("count", len(guildIDs)),
-			zap.String("bot_id", session.State.User.ID),
-		)
-
-		err := session.RequestGuildMembersBatch(guildIDs, "", 0, false)
-		if err != nil {
-			eh.logger.Error("failure requesting guild members", zap.Error(err), zap.String("bot_id", session.State.User.ID))
-		}
 	})
 }
