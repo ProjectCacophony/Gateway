@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -27,8 +26,6 @@ type EventHandler struct {
 	state                    *state.State
 	requestGuildMembersDelay time.Duration
 	deduplicate              bool
-
-	requestOnce sync.Once
 }
 
 // NewEventHandler creates a new EventHandler
