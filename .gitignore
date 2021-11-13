@@ -19,3 +19,5 @@ win_build/
 vendor/
 
 env.list
+
+.idea

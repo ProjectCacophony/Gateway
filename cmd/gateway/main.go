@@ -8,24 +8,21 @@ import (
 	"syscall"
 	"time"
 
-	"gitlab.com/Cacophony/go-kit/discord"
-	"gitlab.com/Cacophony/go-kit/events"
-	"go.opentelemetry.io/contrib/propagators/b3"
-	"go.opentelemetry.io/otel/api/global"
-	"go.opentelemetry.io/otel/api/propagation"
-
-	"gitlab.com/Cacophony/go-kit/errortracking"
-
-	"gitlab.com/Cacophony/Gateway/pkg/whitelist"
-
 	"github.com/go-redis/redis"
 	"github.com/honeycombio/opentelemetry-exporter-go/honeycomb"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/pkg/errors"
 	"gitlab.com/Cacophony/Gateway/pkg/handler"
+	"gitlab.com/Cacophony/Gateway/pkg/whitelist"
 	"gitlab.com/Cacophony/go-kit/api"
+	"gitlab.com/Cacophony/go-kit/discord"
+	"gitlab.com/Cacophony/go-kit/errortracking"
+	"gitlab.com/Cacophony/go-kit/events"
 	"gitlab.com/Cacophony/go-kit/logging"
 	"gitlab.com/Cacophony/go-kit/state"
+	"go.opentelemetry.io/contrib/propagators/b3"
+	"go.opentelemetry.io/otel/api/global"
+	"go.opentelemetry.io/otel/api/propagation"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.uber.org/zap"
 )

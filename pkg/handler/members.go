@@ -58,5 +58,4 @@ func (eh *EventHandler) requestGuildMembers(session *discordgo.Session, ready *d
 
 		time.Sleep(1 * time.Second)
 	}
-
 }

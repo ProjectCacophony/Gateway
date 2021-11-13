@@ -5,7 +5,6 @@ import (
 	"time"
 
 	raven "github.com/getsentry/raven-go"
-
 	"github.com/go-redis/redis"
 	"go.uber.org/zap"
 )

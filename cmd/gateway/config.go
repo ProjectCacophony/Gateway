@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"gitlab.com/Cacophony/go-kit/errortracking"
-
 	"gitlab.com/Cacophony/go-kit/logging"
 )
 
