@@ -1,0 +1,41 @@
+version: "2.1"
+services:
+  # RabbitMQ is serving as the AMQP Broker, credentials: guest:guest
+  rabbitmq:
+    image: registry.gitlab.com/cacophony/dev-rabbitmq-image:latest
+    ports:
+      - "15672:15672"
+      - "5672:5672"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:15672"]
+      interval: 5s
+      timeout: 5s
+      retries: 100
+
+  # Postgres, credentials: postgres:postgres
+  postgres:
+    image: postgres:11.2
+    environment:
+      POSTGRES_PASSWORD: "postgres"
+    ports:
+      - "5432:5432"
+
+  # Redis
+  redis:
+    image: redis
+    ports:
+      - "6379:6379"
+
+  processor:
+    image: registry.gitlab.com/cacophony/processor:latest
+    environment:
+      PORT: "8000"
+      ENVIRONMENT: "development"
+      AMQP_DSN: "amqp://guest:guest@rabbitmq:5672/"
+      REDIS_ADDRESS: "redis:6379"
+      DB_DSN: "postgres://postgres:postgres@postgres:5432/?sslmode=disable"
+    env_file:
+      - .env # should contain DISCORD_TOKENS=<your Bot ID>:<your Discord Token>
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
