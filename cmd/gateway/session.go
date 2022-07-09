@@ -46,9 +46,11 @@ func NewSession(
 	logger.Info("connected Bot to Discord Gateway")
 
 	err = discordSession.UpdateStatusComplex(discordgo.UpdateStatusData{
-		Game: &discordgo.Game{
-			Name: ".help",
-			Type: discordgo.GameTypeGame,
+		Activities: []*discordgo.Activity{
+			{
+				Name: ".help",
+				Type: discordgo.ActivityTypeGame,
+			},
 		},
 		Status: "online",
 	})

@@ -56,7 +56,7 @@ func main() {
 	if err != nil {
 		panic(errors.Wrap(err, "unable to initialise logger"))
 	}
-	defer logger.Sync()
+	defer logger.Sync() // nolint: errcheck
 
 	// init tracing
 	if config.HoneycombAPIKey != "" {
@@ -73,7 +73,7 @@ func main() {
 		}
 		defer func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			honeycombExporter.Shutdown(ctx)
+			honeycombExporter.Shutdown(ctx) // nolint: errcheck
 			cancel()
 		}()
 

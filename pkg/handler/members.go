@@ -51,7 +51,7 @@ func (eh *EventHandler) requestGuildMembers(session *discordgo.Session, ready *d
 			zap.String("bot_id", session.State.User.ID),
 		)
 
-		err = session.RequestGuildMembers(guild.ID, "", 0, false)
+		err = session.RequestGuildMembers(guild.ID, "", 0, "", false)
 		if err != nil {
 			eh.logger.Error("failure requesting guild members", zap.Error(err), zap.String("bot_id", session.State.User.ID))
 		}
