@@ -7,7 +7,7 @@ require (
 	github.com/honeycombio/opentelemetry-exporter-go v0.12.0
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/pkg/errors v0.9.1
-	gitlab.com/Cacophony/go-kit v0.0.0-20220709222458-a30b172e3cba
+	gitlab.com/Cacophony/go-kit v0.0.0-20220709223358-ab145b942eea
 	go.opentelemetry.io/contrib/propagators v0.12.0
 	go.opentelemetry.io/otel v0.12.0
 	go.opentelemetry.io/otel/sdk v0.12.0
